@@ -18,6 +18,7 @@ test('authorized deployment provisions D1 and R2, migrates and deploys without d
     const fakeNpx = path.join(bin, 'npx');
     const workerConfig = JSON.parse(fs.readFileSync(path.join(projectRoot, 'wrangler.jsonc'), 'utf8'));
     workerConfig.d1_databases[0].database_id = 'REPLACE_WITH_YOUR_D1_DATABASE_ID';
+    workerConfig.r2_buckets = [{binding:'EVIDENCE',bucket_name:'powerresolve-evidence'}];
     fs.writeFileSync(path.join(dir, 'wrangler.jsonc'), JSON.stringify(workerConfig));
     const mock = `#!/usr/bin/env node
 const fs = require('fs');
