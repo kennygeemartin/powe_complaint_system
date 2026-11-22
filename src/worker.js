@@ -10,6 +10,10 @@ const STATUS = {
   close:['resolved','closed'], reopen:['resolved','reopened'],
   resume:['reopened','in_progress']
 };
+// Cloudflare workerd rejects PBKDF2 iteration counts > 100,000 in production.
+// Keep this same value for account creation and authentication. Existing passwords
+// must not be silently re-hashed with a different iteration count.
+const PBKDF2_ITERATIONS = 100000;
 const enc = new TextEncoder();
 const now = () => new Date().toISOString();
 const isoLater = days => new Date(Date.now()+days*86400_000).toISOString();
@@ -23,7 +27,7 @@ const clean = value => typeof value==='string' ? value.trim() : '';
 const sha256 = async str => hex(await crypto.subtle.digest('SHA-256',enc.encode(str)));
 async function passwordHash(password,salt) {
   const key=await crypto.subtle.importKey('raw',enc.encode(password),'PBKDF2',false,['deriveBits']);
-  return hex(await crypto.subtle.deriveBits({name:'PBKDF2',salt:enc.encode(salt),iterations:160000,hash:'SHA-256'},key,256));
+  return hex(await crypto.subtle.deriveBits({name:'PBKDF2',salt:enc.encode(salt),iterations:PBKDF2_ITERATIONS,hash:'SHA-256'},key,256));
 }
 async function secretEqual(a,b) {
   if(typeof a!=='string'||typeof b!=='string')return false;
