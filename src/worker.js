@@ -82,6 +82,9 @@ async function route(req,env){
     catch(e){console.error('D1 schema check failed',e?.message||'Unknown D1 error');fail(503,'Database not initialized. Apply the D1 migrations.')}
     return json({status:'ok',service:'PowerResolve Cloudflare demo',timestamp:now()});
   }
+  if(pathname==='/api/capabilities'&&method==='GET'){
+    return json({evidence_upload:Boolean(env.EVIDENCE), complaint_reporting:true, gps_fields:true});
+  }
   if(pathname==='/api/register'&&method==='POST'){
     const {alias,password}=authFields(await readJSON(req));return json({user_id:await addUser(env,alias,password)},200);
   }
