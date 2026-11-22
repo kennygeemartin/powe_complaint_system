@@ -52,7 +52,9 @@ public class MainActivity extends Activity {
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         preferences = getSharedPreferences("powerresolve_settings", MODE_PRIVATE);
-        String initial = preferences.getString("service_origin", "");
+        // A build with a configured URL opens directly, avoiding setup on consumer devices.
+        String configured = normalizedUrl(BuildConfig.SERVICE_URL);
+        String initial = configured != null ? configured : preferences.getString("service_origin", "");
         if (initial != null && !initial.isEmpty() && isValidHttps(initial)) openService(initial);
         else showConnectionScreen(null);
     }
@@ -85,6 +87,23 @@ public class MainActivity extends Activity {
         } catch (Exception e) { return null; }
     }
     private boolean isValidHttps(String raw) { return normalizedUrl(raw) != null; }
+    private boolean hasConfiguredService() { return normalizedUrl(BuildConfig.SERVICE_URL) != null; }
+
+    private void showServiceUnavailable(String reason) {
+        if (browser != null) { browser.destroy(); browser = null; }
+        prepareScreen();
+        LinearLayout content = new LinearLayout(this); content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(26),dp(64),dp(26),dp(24));
+        root.addView(content, new LinearLayout.LayoutParams(-1,-1));
+        TextView mark=text("⚡",48,blue);mark.setGravity(Gravity.CENTER);content.addView(mark,fullWidth());
+        TextView title=text("PowerResolve",28,navy);title.setGravity(Gravity.CENTER);title.setTypeface(null,1);
+        content.addView(title,fullWidth());
+        TextView note=text(reason,16,Color.DKGRAY);note.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams noteLp=fullWidth();noteLp.topMargin=dp(32);content.addView(note,noteLp);
+        Button retry=button("Try again");
+        LinearLayout.LayoutParams retryLp=fullWidth();retryLp.topMargin=dp(28);content.addView(retry,retryLp);
+        retry.setOnClickListener(v -> openService(BuildConfig.SERVICE_URL));
+    }
 
     private void showConnectionScreen(String warning) {
         if (browser != null) { browser.destroy(); browser = null; }
@@ -130,10 +149,15 @@ public class MainActivity extends Activity {
         Button setting=new Button(this); setting.setText("Server");setting.setAllCaps(false);
         setting.setTextColor(Color.WHITE);setting.setBackgroundTintList(android.content.res.ColorStateList.valueOf(navy));
         bar.addView(setting,new LinearLayout.LayoutParams(dp(89),dp(48)));
-        setting.setOnClickListener(v -> new AlertDialog.Builder(this).setTitle("Service connection")
-            .setMessage("Connected to: "+ serviceOrigin +"\nChange the address only if your administrator gives you a new secure URL.")
-            .setPositiveButton("Keep current",null)
-            .setNegativeButton("Change server",(dialog,which)->showConnectionScreen(null)).show());
+        if (hasConfiguredService()) {
+            // Consumer builds with a configured service do not expose server switching.
+            setting.setVisibility(View.GONE);
+        } else {
+            setting.setOnClickListener(v -> new AlertDialog.Builder(this).setTitle("Service connection")
+                .setMessage("Connected to: "+ serviceOrigin +"\nChange the address only if your administrator gives you a new secure URL.")
+                .setPositiveButton("Keep current",null)
+                .setNegativeButton("Change server",(dialog,which)->showConnectionScreen(null)).show());
+        }
         browser=new WebView(this);
         root.addView(browser,new LinearLayout.LayoutParams(-1,0,1));
         WebSettings settings=browser.getSettings();settings.setJavaScriptEnabled(true);
@@ -153,10 +177,19 @@ public class MainActivity extends Activity {
                 }return true;
             }
             @Override public void onReceivedSslError(WebView view,SslErrorHandler handler,SslError error){
-                handler.cancel();showConnectionScreen("The HTTPS certificate could not be verified. Check the server address.");
+                handler.cancel();
+                view.post(() -> {
+                    if (hasConfiguredService()) showServiceUnavailable("The secure connection could not be verified. Please try again or contact support.");
+                    else showConnectionScreen("The HTTPS certificate could not be verified. Check the server address.");
+                });
             }
             @Override public void onReceivedError(WebView view,WebResourceRequest req,WebResourceError error){
-                if(req.isForMainFrame())showConnectionScreen("Unable to reach the service. Confirm that the Cloudflare Worker is deployed and your phone is online.");
+                if(req.isForMainFrame()) {
+                    view.post(() -> {
+                        if (hasConfiguredService()) showServiceUnavailable("The service is temporarily unavailable. Check your internet connection and try again.");
+                        else showConnectionScreen("Unable to reach the service. Confirm that the Cloudflare Worker is deployed and your phone is online.");
+                    });
+                }
             }
         });
         browser.setWebChromeClient(new WebChromeClient(){
