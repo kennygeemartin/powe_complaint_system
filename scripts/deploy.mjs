@@ -111,7 +111,7 @@ if (!r2Requested) {
     if(disabled){
       console.warn('[PowerResolve deployment] R2 is not activated; omitting its optional binding.');
       delete config.r2_buckets;
-      fs.writeFileSync(configPath,JSON.stringify(config,null,2)+'\\n');
+      fs.writeFileSync(configPath,JSON.stringify(config,null,2)+'\n');
     }else{
       const create=cli(['r2','bucket','create',bucketName,'--no-update-config'],{optional:true});
       if(create.status!==0){
@@ -119,7 +119,7 @@ if (!r2Requested) {
         if(/(?:10042|enable R2|R2 subscription)/i.test(error)){
           console.warn('[PowerResolve deployment] R2 activation required; continuing without photo uploads.');
           delete config.r2_buckets;
-          fs.writeFileSync(configPath,JSON.stringify(config,null,2)+'\\n');
+          fs.writeFileSync(configPath,JSON.stringify(config,null,2)+'\n');
         }else{
           console.error(error.slice(-1000));
           fail('R2 initialization failed for a reason other than subscription activation.');
