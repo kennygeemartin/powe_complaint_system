@@ -24,6 +24,14 @@ A screenshot from the public site showed **Internal server error** after consume
 
 A freshly deployed version reports `"release":"auth-workers-pbkdf2-fix"` at [`/api/health`](https://powe-complaint-system.kennygeemartin.workers.dev/api/health). Confirm this release marker and `"status":"ok"` before retrying registration with a **new demonstration alias**. A successful build is necessary but does not by itself verify a real user can register; if HTTP 500 persists, inspect Cloudflare Worker Observability logs for the actual exception and validate the D1 users table. Do not post passwords, session tokens, or API keys in reports.
 
+## Mobile-first interface redesign (November 2026)
+
+PowerResolve now uses an external shared design system in `public/styles.css` instead of the previous compact inline style block. The layout is intentionally restrained: neutral backgrounds, one deep-blue feature panel, high-contrast text, readable system fonts with no external font dependency, more spacious forms, clearly labeled status indicators, and consistent tap targets. Most body text is at least 15–16 px, and form controls use 16 px text to avoid auto-zoom on mobile browsers.
+
+At narrow phone widths, the sidebar becomes a **labeled bottom navigation bar** with simple SVG icons, and the six-column complaint table becomes vertically stacked, labeled case cards rather than requiring horizontal scrolling. Registration, consumer complaints, technician actions, administrator views and the existing PWA install controls all use the same stylesheet. Keyboard focus indicators and reduced-motion preferences are supported.
+
+**Check the deployed design:** Open [PowerResolve](https://powe-complaint-system.kennygeemartin.workers.dev/) after the newest Cloudflare build succeeds. If the previous style remains in a cached browser tab, refresh the page fully; installed PWAs should be closed and reopened after the deployment. These code changes do not add photo uploads or R2.
+
 ## Implemented functionality
 
 Consumer account registration/login, 7-day server sessions and logout; role-scoped complaint lists; GPS coordinate and category validation; deduplicated complaint submissions; server-calculated Emergency/High/Routine priority; admin review, staff assignment, agent progress/resolution notes, admin closure, consumer reopening and feedback; immutable state-event history via database triggers; admin statistics. Complaints are text and location based; photo uploads are not supported. No default admin or technician credentials are committed.
