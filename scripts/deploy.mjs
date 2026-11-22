@@ -1,57 +1,114 @@
-// PowerResolve Cloudflare preflight and release; never prints credentials.
-// This wrapper is used by the GitHub workflow and can be used in Cloudflare Workers Builds.
+/**
+ * PowerResolve deployment bootstrap for authorized Cloudflare CI builds.
+ *
+ * Creates the named D1 database and R2 bucket if missing, applies D1 migrations,
+ * then deploys the Worker. The authenticated Cloudflare build token must have the
+ * necessary D1, R2, and Workers permissions. No credentials are printed or saved.
+ */
 import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
 
 const configPath = 'wrangler.jsonc';
-const dbName = 'powerresolve-db';
-const validUUID = value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
-const fail = message => { console.error('[PowerResolve deployment] ' + message); process.exit(1); };
+const databaseName = 'powerresolve-db';
+const bucketName = 'powerresolve-evidence';
+const workerName = 'powe-complaint-system';
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const fail = message => {
+  console.error('[PowerResolve deployment] ' + message);
+  process.exit(1);
+};
 
-function command(args, options = {}) {
+const cli = (args, { visible = false, optional = false } = {}) => {
   const r = spawnSync('npx', ['--no-install', 'wrangler', ...args], {
-    encoding: 'utf8', env: process.env, maxBuffer: 4 * 1024 * 1024,
-    ...(options.visible ? {stdio: 'inherit'} : {}), ...options
+    encoding: 'utf8',
+    env: process.env,
+    maxBuffer: 4 * 1024 * 1024,
+    ...(visible ? { stdio: 'inherit' } : {})
   });
-  if (r.error || r.status !== 0) {
-    if (options.visible) fail('Wrangler ' + args[0] + ' failed. Review its diagnostic messages.');
-    fail('Cloudflare D1 lookup could not run with the current build credentials. Ensure the build token has D1 Read access, or set POWERRESOLVE_D1_DATABASE_ID in Cloudflare Build variables.');
-  }
-  return r.stdout ?? '';
-}
-
-function databaseFromWrangler() {
-  let list;
-  try {
-    const raw = command(['d1','list','--json']).trim();
-    try { list = JSON.parse(raw); }
-    catch {
-      const start = raw.search(/[\\[{]/);
-      if (start < 0) throw new Error('No D1 JSON result');
-      list = JSON.parse(raw.slice(start));
+  if (r.error) fail('Wrangler could not start: ' + r.error.message);
+  if (r.status !== 0 && !optional) {
+    if (!visible) {
+      const last = (r.stderr || r.stdout || '').trim().slice(-800);
+      console.error(last);
     }
-  } catch (err) { fail('D1 listing failed. Set POWERRESOLVE_D1_DATABASE_ID to the UUID shown on your D1 database page (not the Cloudflare account ID).'); }
-  const entries = Array.isArray(list) ? list : (list?.result || list?.databases);
-  if (!Array.isArray(entries)) fail('Unexpected response from wrangler d1 list --json.');
-  const matches = entries.filter(x => x.name === dbName);
-  if (matches.length !== 1) fail('Expected exactly one D1 database named "' + dbName + '". Create it in Cloudflare D1 or select its ID using POWERRESOLVE_D1_DATABASE_ID.');
-  return matches[0].uuid || matches[0].id;
+    fail('Command failed: wrangler ' + args.join(' ') + '. Check Cloudflare build token permissions and account resource activation.');
+  }
+  return r;
+};
+
+function parseCloudflareJson(output) {
+  const raw = output.trim();
+  try { return JSON.parse(raw); } catch {}
+  // Wrangler occasionally prefixes diagnostic messages to JSON output.
+  const candidates = [raw.indexOf('['), raw.indexOf('{')].filter(i => i >= 0).sort((a, b) => a - b);
+  for (const position of candidates) {
+    try { return JSON.parse(raw.slice(position)); } catch {}
+  }
+  fail('Could not read Wrangler JSON output; check current Wrangler version.');
 }
 
-const cfg = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-if (cfg.name !== 'powe-complaint-system') fail('The Worker name must match the Cloudflare connected build.');
-if (!Array.isArray(cfg.d1_databases) || cfg.d1_databases.length !== 1 || cfg.d1_databases[0].binding !== 'DB') fail('Missing the expected DB D1 binding.');
-if (!Array.isArray(cfg.r2_buckets) || !cfg.r2_buckets.find(x => x.binding === 'EVIDENCE')) fail('Missing private R2 evidence storage binding.');
+function listDatabases() {
+  const result = cli(['d1', 'list', '--json'], { optional: true });
+  if (result.status !== 0) fail(
+    'Cannot list Cloudflare D1 databases. The connected build token needs D1 Read/Edit permissions. ' +
+    'Provide an authorized Cloudflare build token; do not share the token in chat or GitHub.'
+  );
+  const parsed = parseCloudflareJson(result.stdout || '');
+  const list = Array.isArray(parsed) ? parsed : (parsed.result || parsed.databases);
+  if (!Array.isArray(list)) fail('Cloudflare D1 list returned an unexpected result.');
+  return list;
+}
 
-let uuid = process.env.POWERRESOLVE_D1_DATABASE_ID || cfg.d1_databases[0].database_id;
-if (!validUUID(uuid)) uuid = databaseFromWrangler();
-if (!validUUID(uuid)) fail('D1 database ID is invalid. Use the UUID belonging to "powerresolve-db", not the Cloudflare account ID.');
-cfg.d1_databases[0].database_id = uuid;
-fs.writeFileSync(configPath, JSON.stringify(cfg, null, 2) + '\n');
-console.log('[PowerResolve deployment] D1 ID resolved and Wrangler configuration validated.');
+const getDatabaseId = list => {
+  const matches = list.filter(db => db.name === databaseName);
+  if (matches.length > 1) fail('Multiple D1 databases have the configured name; select the correct one manually.');
+  return matches[0] ? (matches[0].uuid || matches[0].id) : null;
+};
 
-if (process.argv.includes('--prepare-only')) process.exit(0);
-command(['d1','migrations','apply',dbName,'--remote'],{visible:true});
-console.log('[PowerResolve deployment] Database migrations applied.');
-command(['deploy'],{visible:true});
-console.log('[PowerResolve deployment] Deployment command completed. Verify /api/health over HTTPS.');
+const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+if (config.name !== workerName) fail('Expected Worker name ' + workerName + ', found ' + config.name);
+if (config.d1_databases?.length !== 1 || config.d1_databases[0].binding !== 'DB') {
+  fail('Expected exactly one Cloudflare D1 database binding named DB.');
+}
+if (!config.r2_buckets?.some(r => r.binding === 'EVIDENCE' && r.bucket_name === bucketName)) {
+  fail('Expected a private R2 bucket binding named EVIDENCE.');
+}
+
+const suppliedId = process.env.POWERRESOLVE_D1_DATABASE_ID?.trim();
+if (suppliedId && !uuidPattern.test(suppliedId)) {
+  fail('POWERRESOLVE_D1_DATABASE_ID must be a D1 database UUID, not an account ID.');
+}
+let id = suppliedId || config.d1_databases[0].database_id;
+const isDryRun = process.argv.includes('--prepare-only');
+
+// The isolated preflight verifies config without making Cloudflare API calls.
+if (!uuidPattern.test(id) && isDryRun) {
+  fail('The D1 ID is missing. Supply POWERRESOLVE_D1_DATABASE_ID for a local --prepare-only test.');
+}
+if (!uuidPattern.test(id)) {
+  console.log('[PowerResolve deployment] Discovering existing D1 database.');
+  id = getDatabaseId(listDatabases());
+  if (!id) {
+    console.log('[PowerResolve deployment] Creating D1 database: ' + databaseName);
+    cli(['d1', 'create', databaseName], { visible: true });
+    id = getDatabaseId(listDatabases());
+  }
+}
+if (!uuidPattern.test(id)) fail('Could not resolve the newly created D1 database ID.');
+config.d1_databases[0].database_id = id;
+fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n');
+console.log('[PowerResolve deployment] D1 configuration validated.');
+if (isDryRun) process.exit(0);
+
+// Validate R2 availability and create the bucket once, if necessary.
+const bucketInfo = cli(['r2', 'bucket', 'info', bucketName, '--json'], { optional: true });
+if (bucketInfo.status !== 0) {
+  console.log('[PowerResolve deployment] R2 bucket not found or not accessible; trying creation.');
+  cli(['r2', 'bucket', 'create', bucketName], { visible: true });
+  cli(['r2', 'bucket', 'info', bucketName, '--json'], { visible: true });
+}
+console.log('[PowerResolve deployment] R2 bucket verified; applying database migrations.');
+cli(['d1', 'migrations', 'apply', databaseName, '--remote'], { visible: true });
+console.log('[PowerResolve deployment] Database migrated; deploying Worker.');
+cli(['deploy'], { visible: true });
+console.log('[PowerResolve deployment] Wrangler deployment finished; verify the public /api/health endpoint.');
