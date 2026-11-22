@@ -1,5 +1,5 @@
 /**
- * PowerResolve Cloudflare Workers + D1 + R2 implementation.
+ * PowerResolve Cloudflare Workers + D1 implementation.
  * This is a research demonstration, not an integrated electricity utility dispatch service.
  * Real incidents must be reported through official channels.
  */
@@ -81,9 +81,6 @@ async function route(req,env){
     try {await env.DB.prepare('SELECT COUNT(*) AS total FROM users').first()}
     catch(e){console.error('D1 schema check failed',e?.message||'Unknown D1 error');fail(503,'Database not initialized. Apply the D1 migrations.')}
     return json({status:'ok',service:'PowerResolve Cloudflare demo',timestamp:now()});
-  }
-  if(pathname==='/api/capabilities'&&method==='GET'){
-    return json({evidence_upload:Boolean(env.EVIDENCE), complaint_reporting:true, gps_fields:true});
   }
   if(pathname==='/api/register'&&method==='POST'){
     const {alias,password}=authFields(await readJSON(req));return json({user_id:await addUser(env,alias,password)},200);
@@ -171,16 +168,15 @@ async function route(req,env){
     return json({total:results.length,by_status:counts,emergency:results.filter(r=>r.priority==='Emergency').length,
       high:results.filter(r=>r.priority==='High').length,resolved:results.filter(r=>['resolved','closed'].includes(r.status)).length});
   }
-  const caseMatch=pathname.match(/^\/api\/complaints\/(\d+)(?:\/(action|feedback|evidence))?$/);
+  const caseMatch=pathname.match(/^\/api\/complaints\/(\d+)(?:\/(action|feedback))?$/);
   if(caseMatch){
     const id=Number(caseMatch[1]),sub=caseMatch[2]||'',c=await getCase(env,id);access(a,c);
     if(!sub&&method==='GET'){
-      const [events,feedback,evidence]=await Promise.all([
+      const [events,feedback]=await Promise.all([
         env.DB.prepare(`SELECT e.*,u.alias AS actor FROM events e LEFT JOIN users u ON e.actor_id=u.id WHERE e.complaint_id=? ORDER BY e.id`).bind(id).all(),
-        env.DB.prepare('SELECT id,complaint_id,cycle,rating,comment,submitted_at FROM feedback WHERE complaint_id=?').bind(id).all(),
-        env.DB.prepare('SELECT id,filename,mime,size FROM uploads WHERE complaint_id=?').bind(id).all()
+        env.DB.prepare('SELECT id,complaint_id,cycle,rating,comment,submitted_at FROM feedback WHERE complaint_id=?').bind(id).all()
       ]);
-      return json({...c,events:events.results,feedback:feedback.results,evidence:evidence.results});
+      return json({...c,events:events.results,feedback:feedback.results});
     }
     if(sub==='action'&&method==='POST'){
       const x=await readJSON(req),rule=STATUS[x.action];
@@ -216,27 +212,7 @@ async function route(req,env){
       catch(e){if(/UNIQUE|constraint/i.test(e.message))fail(409,'Feedback already submitted for this resolution cycle');throw e}
       return json({saved:true});
     }
-    if(sub==='evidence'&&method==='POST'){
-      rolecheck(a,['consumer']);
-      if(!env.EVIDENCE)fail(503,'Evidence storage has not been configured');
-      const data=await req.formData(),file=data.get('file');
-      if(!(file instanceof File))fail(422,'Evidence image is required');
-      if(file.size>2_000_000)fail(413,'File exceeds 2 MB limit');
-      if(file.size===0)fail(422,'Empty image');
-      const mime=file.type;
-      if(!['image/png','image/jpeg','image/webp'].includes(mime))fail(415,'Only PNG, JPEG and WEBP supported');
-      const bytes=new Uint8Array(await file.arrayBuffer());
-      const isPNG=bytes.length>=8&&[137,80,78,71,13,10,26,10].every((v,i)=>bytes[i]===v);
-      const isJPEG=bytes.length>=3&&bytes[0]===255&&bytes[1]===216&&bytes[2]===255;
-      const isWEBP=bytes.length>=12&&String.fromCharCode(...bytes.slice(0,4))==='RIFF'&&String.fromCharCode(...bytes.slice(8,12))==='WEBP';
-      if(!((mime==='image/png'&&isPNG)||(mime==='image/jpeg'&&isJPEG)||(mime==='image/webp'&&isWEBP)))fail(415,'Invalid image signature');
-      const key=`cases/${id}/${randomHex(16)}`;
-      await env.EVIDENCE.put(key,bytes,{httpMetadata:{contentType:mime}});
-      try {await env.DB.prepare('INSERT INTO uploads(complaint_id,owner_id,filename,mime,size,storage,uploaded_at) VALUES (?,?,?,?,?,?,?)')
-        .bind(id,a.id,clean(file.name).slice(0,100)||'evidence',mime,file.size,key,now()).run();}
-      catch(e){await env.EVIDENCE.delete(key);throw e}
-      return json({stored:true,bytes:file.size});
-    }
+
   }
   fail(404,'Unknown API route');
 }
