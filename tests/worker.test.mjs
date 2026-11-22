@@ -39,6 +39,26 @@ async function login(env,alias){const r=await call(env,'/api/login','POST',{alia
 test('Cloudflare Worker: authentication, complaint workflow and authorization',async t=>{
  const env=mockEnv(),ok=(name,fn)=>t.test(name,fn);
  await ok('public health reflects reachable D1',async()=>{const r=await call(env,'/api/health');assert.equal(r.status,200);assert.equal(r.body.status,'ok')});
+ await ok('production PBKDF2 limit permits new account registration and login',async()=>{
+   const subtle=crypto.subtle;
+   const original=subtle.deriveBits;
+   const iterations=[];
+   subtle.deriveBits=async function(params,key,length){
+     if(params.name==='PBKDF2'){
+       iterations.push(params.iterations);
+       if(params.iterations>100000)throw new DOMException('iteration counts above 100000 are not supported','NotSupportedError');
+     }
+     return original.call(this,params,key,length);
+   };
+   try{
+     const registered=await register(env,'CloudflareLimitCase');
+     assert.equal(registered.status,200);
+     const signedIn=await login(env,'CloudflareLimitCase');
+     assert.equal(signedIn.user.role,'consumer');
+     assert.deepEqual(iterations,[100000,100000]);
+   } finally {subtle.deriveBits=original}
+ });
+
  await ok('health reports missing DB as unavailable',async()=>{
    const r=await call({...env,DB:null},'/api/health');
    assert.equal(r.status,503);
