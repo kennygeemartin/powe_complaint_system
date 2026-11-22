@@ -34,20 +34,16 @@ jobs:
           gradle-version: '8.9'
       - name: Check configured PowerResolve service
         env:
-          POWERRESOLVE_SERVICE_URL: ${{ vars.POWERRESOLVE_SERVICE_URL }}
+          POWERRESOLVE_SERVICE_URL: ${{ vars.POWERRESOLVE_SERVICE_URL || 'https://powe-complaint-system.kennygeemartin.workers.dev' }}
         run: |
-          if [ -z "$POWERRESOLVE_SERVICE_URL" ]; then
-            echo "::warning::No service URL configured; this is a developer test APK requiring manual HTTPS setup."
-          else
-            case "$POWERRESOLVE_SERVICE_URL" in
-              https://*) ;;
-              *) echo "::error::POWERRESOLVE_SERVICE_URL must begin with https://"; exit 1 ;;
-            esac
-            curl --fail --silent --show-error --retry 3 --max-time 20 "$POWERRESOLVE_SERVICE_URL/api/health" | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{let x;try{x=JSON.parse(s)}catch{process.exit(1)}if(x.status!=="ok")process.exit(1);console.log("Verified live PowerResolve service")})'
-          fi
+          case "$POWERRESOLVE_SERVICE_URL" in
+            https://*) ;;
+            *) echo "::error::POWERRESOLVE_SERVICE_URL must begin with https://"; exit 1 ;;
+          esac
+          curl --fail --silent --show-error --retry 4 --retry-delay 3 --max-time 25 "$POWERRESOLVE_SERVICE_URL/api/health" | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{let x;try{x=JSON.parse(s)}catch{process.exit(1)}if(x.status!=="ok")process.exit(1);console.log("Verified live PowerResolve service:",x.service)})'
       - name: Build installable test APK
         env:
-          POWERRESOLVE_SERVICE_URL: ${{ vars.POWERRESOLVE_SERVICE_URL }}
+          POWERRESOLVE_SERVICE_URL: ${{ vars.POWERRESOLVE_SERVICE_URL || 'https://powe-complaint-system.kennygeemartin.workers.dev' }}
         run: gradle -p android :app:assembleDebug --no-daemon --stacktrace
       - name: Verify build output and SHA-256
         run: |
