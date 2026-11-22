@@ -1,0 +1,233 @@
+/* PowerResolve • Calm, accessible interface • 2026-11
+   A single responsive design system for consumer, technician and admin screens.
+   System fonts render crisply without external downloads. */
+:root {
+  color-scheme: light;
+  --navy: #183654;
+  --navy2: #244966;
+  --ink: #192a40;
+  --muted: #56677d;
+  --light: #f5f7fa;
+  --border: #dce4ed;
+  --blue: #245ac2;
+  --blue-hover: #1a458f;
+  --teal: #087760;
+  --danger: #ad3043;
+  --amber: #895a0d;
+  --surface: #ffffff;
+  --r: 16px;
+  --shadow: 0 4px 22px rgba(27, 47, 73, .045);
+}
+*, *::before, *::after {box-sizing: border-box}
+html {font-size: 16px; -webkit-text-size-adjust: 100%; scroll-behavior: smooth}
+body {margin: 0; min-width: 300px; background: var(--light); color: var(--ink); font: 400 1rem/1.6 "Inter", "Segoe UI", Roboto, system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased}
+button, input, select, textarea {font: inherit}
+button {cursor: pointer; touch-action: manipulation}
+button:disabled {cursor: not-allowed; opacity: .55}
+a {color: var(--blue); text-underline-offset: 3px}
+a:hover {color: var(--blue-hover)}
+:focus-visible {outline: 3px solid #6799ed; outline-offset: 3px}
+h1, h2, h3, p {margin-top: 0}
+h1, h2, h3 {font-weight: 750; letter-spacing: -.025em; line-height: 1.25; color: var(--ink)}
+h1 {font-size: clamp(1.75rem, 2.4vw, 2.2rem); margin-bottom: 14px}
+h2 {font-size: 1.32rem; margin-bottom: 17px}
+h3 {font-size: 1.08rem; margin-bottom: 10px}
+p {margin-bottom: 15px}
+.app {display: flex; min-height: 100vh; align-items: stretch}
+
+/* Navigation: a restrained light sidebar, clear active state and useful labels. */
+.sidebar {position: sticky; top: 0; width: 254px; min-width: 254px; height: 100vh; background: #fff; border-right: 1px solid var(--border); padding: 30px 18px 24px; display: flex; flex-direction: column; z-index: 30}
+.brand, .logoauth {display: flex; gap: 12px; align-items: center; color: var(--navy); font-weight: 800; letter-spacing: -.03em}
+.brand {font-size: 1.36rem; margin: 0 4px 38px}
+.brand-mark {width: 43px; height: 43px; flex: 0 0 43px; border-radius: 13px; display: grid; place-items: center; background: #245ac2; color: white; font-size: 23px; font-weight: 600}
+.brand small {display: block; color: var(--muted); font-size: .72rem; font-weight: 650; letter-spacing: .055em; margin-top: 2px}
+.side-label {margin: 0 14px 12px; color: #69788c; font-size: .76rem; font-weight: 750; letter-spacing: .08em; text-transform: uppercase}
+.nav {display: flex; align-items: center; width: 100%; gap: 14px; padding: 13px 14px; min-height: 49px; text-align: left; margin: 3px 0; border: 1px solid transparent; border-radius: 12px; background: transparent; color: #4b5e76; font-size: .95rem; font-weight: 680; transition: background .16s, color .16s}
+.nav:hover {background: #f3f6fb; color: var(--navy)}
+.nav.active {background: #eaf1fe; border-color: #dce8fa; color: #174ca3}
+.nav i {display: grid; place-items: center; width: 24px; height: 24px; flex: 0 0 24px; font-style: normal; font-size: 1.24rem}
+.nav i svg {width: 22px; height: 22px}
+.side-footer {margin-top: auto; padding: 20px 10px 0; border-top: 1px solid var(--border); color: var(--muted); font-size: .88rem}
+.side-footer strong {display: block; font-size: .95rem; color: var(--ink)}
+.side-footer .nav {margin-top: 5px; padding: 9px 0}
+
+/* Shared layout. */
+.main {flex: 1; min-width: 0; max-width: 1450px; margin: 0 auto; padding: 36px 40px 72px}
+.top {display: flex; align-items: center; justify-content: space-between; gap: 18px; padding-bottom: 23px; margin-bottom: 28px; border-bottom: 1px solid var(--border)}
+.crumb {font-size: .88rem; color: var(--muted); margin-top: 5px}
+.identity {display: flex; align-items: center; gap: 11px; font-size: .92rem; font-weight: 700; color: var(--ink)}
+.avatar {width: 40px; height: 40px; flex: 0 0 40px; display: grid; place-items: center; border-radius: 12px; background: #e6eefb; color: #234e97; font-weight: 800}
+.eyebrow {font-size: .79rem; font-weight: 780; line-height: 1.45; letter-spacing: .08em; color: #2d5a9c; text-transform: uppercase; margin-bottom: 10px}
+.sub {color: var(--muted); font-size: .94rem; line-height: 1.65}
+.smallnote {font-size: .85rem; line-height: 1.5; color: var(--muted)}
+.headerline {display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 18px; margin: 8px 0 24px}
+.headerline h1 {margin-bottom: 7px}
+.headerline .sub {margin-bottom: 0}
+.two-col {display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(285px, 1fr); gap: 23px; align-items: start}
+.grid2 {display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px}
+.panel {min-width: 0; background: var(--surface); padding: 26px 28px; margin-bottom: 19px; border-radius: var(--r); border: 1px solid var(--border); box-shadow: var(--shadow); overflow-wrap: break-word}
+.panel-head {display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 17px}
+.panel-head h2 {margin: 0}
+
+/* Dashboard: one quiet feature banner, then clearly separated KPIs. */
+.hero {position: relative; overflow: hidden; background: #1b3b61; color: #fff; border: 1px solid #1b3b61; border-radius: 19px; padding: 32px 36px; margin: 8px 0 25px}
+.hero::before {display: none}
+.hero h1 {color: #fff; font-size: clamp(1.75rem, 2.5vw, 2.3rem); line-height: 1.18; max-width: 720px; margin: 10px 0 12px}
+.hero p {max-width: 650px; color: #e1eaf5; font-size: 1.01rem; line-height: 1.65; margin-bottom: 22px}
+.hero .eyebrow {color: #c4dffa !important; font-size: .78rem}
+.hero .action {background: #fff; color: #153e77; box-shadow: none}
+.hero .action:hover {background: #eff5ff}
+.stats {display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 15px; margin: 22px 0}
+.stat {min-width: 0; background: #fff; border: 1px solid var(--border); border-radius: var(--r); padding: 22px 21px; box-shadow: var(--shadow)}
+.stat label {display: block; color: #56677c; font-size: .88rem; font-weight: 620; margin-bottom: 10px}
+.stat strong {display: block; color: #18304c; font-size: clamp(1.8rem, 2.4vw, 2.3rem); letter-spacing: -.05em; line-height: 1.16}
+.stat em {display: block; font-style: normal; font-size: .82rem; color: var(--muted); margin-top: 8px}
+.kpi-bar {height: 9px; border-radius: 999px; background: #eaf0f6; overflow: hidden; margin: 19px 0 10px}
+.kpi-fill {height: 100%; background: #168f75; border-radius: 999px}
+.list-card {display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 17px 0; border-bottom: 1px solid var(--border)}
+.list-card:last-child {border-bottom: none}
+.list-card > div {min-width: 0}
+.case-title {font-weight: 730; font-size: .98rem}
+.case-id {color: #385b89; font-size: .84rem; font-weight: 730; margin-top: 3px}
+.case-meta {color: var(--muted); font-size: .87rem; margin-top: 6px; overflow-wrap: anywhere}
+
+/* Buttons and informative states. */
+.action {min-height: 50px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid transparent; border-radius: 11px; padding: 12px 20px; background: var(--blue); color: white; font-size: .96rem; font-weight: 750; line-height: 1.2; box-shadow: none; text-decoration: none; transition: background .15s, transform .15s}
+.action:hover {background: var(--blue-hover)}
+.action:active {transform: translateY(1px)}
+.action.secondary {background: #eaf1fd; color: #1d4b91; border-color: #d5e2f6}
+.action.secondary:hover {background: #dce9fc}
+.action.outline {background: #fff; color: #214d90; border-color: #cfdbea}
+.action.outline:hover {background: #f2f6fd}
+.action.danger {background: #fff1f3; color: var(--danger); border-color: #f5d2d8}
+.action.danger:hover {background: #ffe5ea}
+.textbtn {min-height: 40px; display: inline-flex; align-items: center; padding: 7px 3px; border: 0; background: transparent; color: var(--blue); font-size: .94rem; font-weight: 750; line-height: 1.25}
+.textbtn:hover {color: var(--blue-hover); text-decoration: underline}
+.install-app {display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; border: 1px solid #bbceed; border-radius: 10px; background: #f1f5fc; color: #204f96; font-size: .86rem; font-weight: 750; padding: 9px 15px}
+.install-app:hover {background: #e3edfd}
+.successbar, .errorbar, .tip {padding: 15px 17px; border-radius: 11px; font-size: .94rem; line-height: 1.6; margin: 14px 0}
+.successbar {background: #eaf7f1; color: #075b46; border: 1px solid #bee7d5}
+.errorbar {background: #fff1f2; color: #932438; border: 1px solid #f1c7cd}
+.tip {background: #f0f5fc; color: #3e5573; border: 1px solid #dce8f7; border-left: 3px solid #5283ce}
+.pill {display: inline-block; white-space: nowrap; padding: 5px 11px; border-radius: 999px; font-size: .77rem; line-height: 1.5; font-weight: 780; text-transform: capitalize; background: #eaf0fa; color: #274e90}
+.pill.emergency {background: #feedef; color: #a32839}
+.pill.high {background: #fff2d9; color: #865b0b}
+.pill.routine {background: #e5f5ed; color: #0b7058}
+.pill.resolved, .pill.closed {background: #e5f5ed; color: #08664d}
+.pill.in_progress {background: #ecebff; color: #4d43a0}
+
+/* Forms: explicit readable labels, 16px controls to avoid mobile zoom. */
+.field {display: flex; flex-direction: column; gap: 8px; margin: 17px 0}
+.field label {color: #32435c; font-size: .96rem; font-weight: 730; line-height: 1.4}
+.field input, .field select, .field textarea, .filter {width: 100%; max-width: 100%; min-height: 52px; padding: 13px 14px; background: #fff; border: 1.5px solid #cbd7e6; border-radius: 11px; color: var(--ink); font-size: 1rem; line-height: 1.5; outline: none; transition: border-color .15s, box-shadow .15s}
+.field input::placeholder, .field textarea::placeholder {color: #748096; opacity: 1}
+.field input:focus, .field select:focus, .field textarea:focus, .filter:focus {border-color: #3973ce; box-shadow: 0 0 0 3px #d9e8fd}
+.field textarea {resize: vertical; min-height: 124px}
+.field input[type="checkbox"] {min-height: 20px; width: 20px !important; height: 20px; flex: 0 0 20px; margin: 0 10px 0 0; vertical-align: middle; accent-color: var(--blue)}
+.field label:has(input[type="checkbox"]) {display: flex; flex-direction: row; align-items: center; gap: 2px; min-height: 36px}
+.filter {width: auto; min-width: 188px; min-height: 48px; padding: 10px 13px; background: #fff}
+.grid2 .field {margin: 13px 0}
+button, select {touch-action: manipulation}
+
+/* Cases: desktop table, legible phone-sized detail cards below. */
+.tablewrap {width: 100%; overflow-x: auto; border-radius: 12px}
+table {width: 100%; border-collapse: collapse; text-align: left}
+th {background: #f3f6fb; color: #4e6179; font-size: .78rem; font-weight: 790; letter-spacing: .06em; padding: 15px 14px; white-space: nowrap}
+td {padding: 17px 14px; font-size: .9rem; line-height: 1.5; border-bottom: 1px solid #e6ebf3; vertical-align: middle}
+td::before {display: none}
+tr:last-child td {border-bottom: 0}
+tbody tr:hover {background: #f9fbfe}
+td b {font-weight: 735}
+td .smallnote {margin-top: 4px}
+.timeline {border-left: 2px solid #cbd9eb; margin: 9px 0 0 8px; padding: 4px 0 0 17px}
+.event {position: relative; margin: 0 0 24px 11px}
+.event:last-child {margin-bottom: 5px}
+.event::before {content: ""; position: absolute; top: 7px; left: -27px; width: 12px; height: 12px; border-radius: 50%; background: #4775be; border: 2px solid white; box-shadow: 0 0 0 2px #c8d8ee}
+.event strong {display: block; font-size: .97rem; text-transform: capitalize}
+.event time {display: block; margin-top: 3px; font-size: .84rem; color: var(--muted)}
+.event p {margin: 7px 0 0; color: #4c6076; font-size: .91rem}
+.foot {font-size: .8rem; color: #64758a; margin-top: 28px; line-height: 1.6}
+.toast {position: fixed; right: 22px; bottom: 24px; z-index: 80; background: #183654; color: white; border-radius: 12px; padding: 15px 20px; font-size: .94rem; box-shadow: var(--shadow)}
+.mobileheader {display: none}
+
+/* Login / registration: no distracting background illustrations. */
+.auth {min-height: 100vh; min-height: 100dvh; padding: 34px 18px; display: grid; place-items: center; background: #f3f6fa}
+.authbox {width: min(100%, 520px); padding: 42px 44px; border: 1px solid #e1e7f0; background: white; border-radius: 22px; box-shadow: 0 15px 45px rgba(30,51,80,.065)}
+.logoauth {font-size: 1.48rem; margin-bottom: 36px}
+.logoauth .brand-mark {height: 46px; width: 46px; flex-basis: 46px}
+.authbox .eyebrow {margin-bottom: 13px}
+.authbox h1 {font-size: 2rem; margin-bottom: 11px}
+.authbox p {color: var(--muted); font-size: 1rem; line-height: 1.62}
+.authbox .field {margin: 21px 0}
+.authbox .action {width: 100%; margin-top: 7px}
+.authbox .install-app {display: flex; width: 100%; margin-top: 14px}
+.authbox .tip {font-size: .88rem}
+.authbox .foot {font-size: .75rem}
+
+/* Tablets: preserve full-size fonts, reduce columns. */
+@media (max-width: 1100px) {
+  .sidebar {width: 220px; min-width: 220px; padding: 26px 13px}
+  .brand {font-size: 1.18rem}
+  .main {padding: 28px 25px 65px}
+  .stats {grid-template-columns: repeat(2, minmax(0, 1fr))}
+  .two-col {grid-template-columns: minmax(0, 1fr)}
+}
+@media (max-width: 760px) {
+  html {scroll-padding-bottom: 96px}
+  .app {display: block}
+  .sidebar {position: fixed; inset: auto 0 0; width: 100%; min-width: 0; height: calc(77px + env(safe-area-inset-bottom)); min-height: 0; z-index: 40; display: flex; flex-direction: row; align-items: flex-start; justify-content: space-evenly; gap: 3px; padding: 7px 9px calc(7px + env(safe-area-inset-bottom)); border-right: 0; border-top: 1px solid #d6e0eb; box-shadow: 0 -3px 18px rgba(29,54,82,.045)}
+  .sidebar .brand, .sidebar .side-label, .sidebar .side-footer {display: none}
+  .sidebar .nav {flex: 1 1 0; width: auto; min-width: 0; height: 60px; min-height: 60px; margin: 0; padding: 6px 1px; border-radius: 11px; gap: 2px; flex-direction: column; justify-content: center; align-items: center; font-size: .77rem; color: #566b83; text-align: center}
+  .sidebar .nav i {width: 24px; height: 24px; flex-basis: 24px}
+  .sidebar .nav i svg {width: 23px; height: 23px}
+  .sidebar .nav span {display: block; font-size: .76rem; font-weight: 725; line-height: 1.25; white-space: normal}
+  .sidebar .nav.active {background: #eaf1fe; color: #184f9e; border-color: #dce8fa}
+  .main {width: 100%; padding: 22px 17px calc(113px + env(safe-area-inset-bottom)); overflow-x: hidden}
+  .top {flex-wrap: wrap; gap: 12px; padding-bottom: 17px; margin-bottom: 22px}
+  .identity {gap: 8px; font-size: .85rem}
+  .identity .avatar {width: 36px; height: 36px; flex-basis: 36px}
+  .identity > span {display: none}
+  .identity .install-app {font-size: .8rem; min-height: 42px; padding: 8px 11px}
+  .crumb {display: none}
+  h1 {font-size: 1.8rem}
+  .hero {padding: 27px 23px; margin: 7px 0 20px}
+  .hero h1 {font-size: 1.85rem}
+  .hero p {font-size: .98rem}
+  .stats {grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; margin: 15px 0 21px}
+  .stat {padding: 18px 15px}
+  .stat strong {font-size: 1.9rem}
+  .two-col, .grid2 {grid-template-columns: 1fr; gap: 0}
+  .panel {padding: 23px 21px}
+  .headerline {align-items: flex-start}
+  .field {margin: 19px 0}
+  .tablewrap {overflow-x: visible}
+  table, thead, tbody, tr, td {display: block; width: 100%}
+  thead {display: none}
+  .cases-table tbody {display: grid; gap: 13px}
+  .cases-table tr {padding: 11px 17px; background: #fff; border: 1px solid var(--border); border-radius: 13px}
+  .cases-table tr:hover {background: #fff}
+  .cases-table td {display: flex; align-items: baseline; justify-content: space-between; gap: 13px; padding: 10px 0; border-bottom: 1px solid #eef1f5; font-size: .9rem; text-align: right; overflow-wrap: anywhere}
+  .cases-table td:last-child {border-bottom: 0}
+  .cases-table td::before {display: block; flex: 0 0 100px; content: attr(data-label); color: #5b6e85; font-weight: 735; font-size: .83rem; text-align: left; line-height: 1.6}
+  .cases-table td > div {min-width: 0}
+  .cases-table td .pill {white-space: normal; text-align: center}
+  .panel .cases-table tr td:first-child {padding-top: 10px}
+  .auth {padding: 20px 13px}
+  .authbox {padding: 32px 27px}
+}
+@media (max-width: 430px) {
+  .main {padding-left: 14px; padding-right: 14px}
+  .panel {padding: 20px 17px}
+  .hero {padding: 25px 20px}
+  .hero h1 {font-size: 1.68rem}
+  .stat strong {font-size: 1.7rem}
+  .stat label {font-size: .82rem}
+  .authbox {padding: 28px 22px}
+  .authbox h1 {font-size: 1.85rem}
+  .logoauth {font-size: 1.36rem}
+  .headerline .action {width: 100%}
+  .cases-table td::before {flex-basis: 91px}
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important}
+}
