@@ -41,6 +41,7 @@ async function login(env,alias){const r=await call(env,'/api/login','POST',{alia
 test('Cloudflare Worker: authentication, complaint workflow, authorization and evidence',async t=>{
  const env=mockEnv(),ok=(name,fn)=>t.test(name,fn);
  await ok('public health reflects reachable D1',async()=>{const r=await call(env,'/api/health');assert.equal(r.status,200);assert.equal(r.body.status,'ok')});
+ await ok('capabilities flag matches available storage',async()=>{const a=await call(env,'/api/capabilities');assert.equal(a.body.evidence_upload,true);const b=await call({...env,EVIDENCE:undefined},'/api/capabilities');assert.equal(b.body.evidence_upload,false)});
  await ok('health reports missing DB as unavailable',async()=>{
    const r=await call({...env,DB:null},'/api/health');
    assert.equal(r.status,503);
