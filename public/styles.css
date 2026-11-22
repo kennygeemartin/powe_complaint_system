@@ -103,13 +103,13 @@ p {margin-bottom: 15px}
 .action.danger:hover {background: #ffe5ea}
 .textbtn {min-height: 40px; display: inline-flex; align-items: center; padding: 7px 3px; border: 0; background: transparent; color: var(--blue); font-size: .94rem; font-weight: 750; line-height: 1.25}
 .textbtn:hover {color: var(--blue-hover); text-decoration: underline}
-.install-app {display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; border: 1px solid #bbceed; border-radius: 10px; background: #f1f5fc; color: #204f96; font-size: .86rem; font-weight: 750; padding: 9px 15px}
+.install-app {display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; border: 1px solid #bbceed; border-radius: 10px; background: #f1f5fc; color: #204f96; font-size: .92rem; font-weight: 750; padding: 9px 15px}
 .install-app:hover {background: #e3edfd}
 .successbar, .errorbar, .tip {padding: 15px 17px; border-radius: 11px; font-size: .94rem; line-height: 1.6; margin: 14px 0}
 .successbar {background: #eaf7f1; color: #075b46; border: 1px solid #bee7d5}
 .errorbar {background: #fff1f2; color: #932438; border: 1px solid #f1c7cd}
 .tip {background: #f0f5fc; color: #3e5573; border: 1px solid #dce8f7; border-left: 3px solid #5283ce}
-.pill {display: inline-block; white-space: nowrap; padding: 5px 11px; border-radius: 999px; font-size: .77rem; line-height: 1.5; font-weight: 780; text-transform: capitalize; background: #eaf0fa; color: #274e90}
+.pill {display: inline-block; white-space: nowrap; padding: 5px 11px; border-radius: 999px; font-size: .84rem; line-height: 1.5; font-weight: 780; text-transform: capitalize; background: #eaf0fa; color: #274e90}
 .pill.emergency {background: #feedef; color: #a32839}
 .pill.high {background: #fff2d9; color: #865b0b}
 .pill.routine {background: #e5f5ed; color: #0b7058}
@@ -132,7 +132,7 @@ button, select {touch-action: manipulation}
 /* Cases: desktop table, legible phone-sized detail cards below. */
 .tablewrap {width: 100%; overflow-x: auto; border-radius: 12px}
 table {width: 100%; border-collapse: collapse; text-align: left}
-th {background: #f3f6fb; color: #4e6179; font-size: .78rem; font-weight: 790; letter-spacing: .06em; padding: 15px 14px; white-space: nowrap}
+th {background: #f3f6fb; color: #4e6179; font-size: .83rem; font-weight: 790; letter-spacing: .05em; padding: 15px 14px; white-space: nowrap}
 td {padding: 17px 14px; font-size: .9rem; line-height: 1.5; border-bottom: 1px solid #e6ebf3; vertical-align: middle}
 td::before {display: none}
 tr:last-child td {border-bottom: 0}
