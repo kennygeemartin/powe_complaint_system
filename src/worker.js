@@ -84,7 +84,7 @@ async function route(req,env){
     if(!env.DB)fail(503,'Database binding unavailable');
     try {await env.DB.prepare('SELECT COUNT(*) AS total FROM users').first()}
     catch(e){console.error('D1 schema check failed',e?.message||'Unknown D1 error');fail(503,'Database not initialized. Apply the D1 migrations.')}
-    return json({status:'ok',service:'PowerResolve Cloudflare demo',timestamp:now()});
+    return json({status:'ok',service:'PowerResolve Cloudflare demo',release:'auth-workers-pbkdf2-fix',timestamp:now()});
   }
   if(pathname==='/api/register'&&method==='POST'){
     const {alias,password}=authFields(await readJSON(req));return json({user_id:await addUser(env,alias,password)},200);
