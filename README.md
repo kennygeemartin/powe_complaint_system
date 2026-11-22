@@ -2,28 +2,28 @@
 
 **Status:** Cloudflare-ready deployment source, not an already provisioned live service. GitHub source is public; do **not** commit user records, credentials, R2 data or historical SQLite databases.
 
-The existing local research prototype used Python/FastAPI/SQLite. **This is a new Cloudflare-compatible implementation** using Cloudflare Workers (JavaScript), D1 (SQLite-compatible persistent database), R2 (private evidence images), and the original responsive web interface. The consumer, technician and administrator API endpoints remain compatible with the existing front-end. It does not build a native Flutter app or provide physical electricity repairs.
+The existing local research prototype used Python/FastAPI/SQLite. **This is a new Cloudflare-compatible implementation** using Cloudflare Workers (JavaScript), D1 (SQLite-compatible persistent database), optional R2 (private evidence images when enabled), and the original responsive web interface. The consumer, technician and administrator API endpoints remain compatible with the existing front-end. It does not build a native Flutter app or provide physical electricity repairs.
 
 ## Implemented functionality
 
-Consumer account registration/login, 7-day server sessions and logout; role-scoped complaint lists; GPS coordinate and category validation; deduplicated complaint submissions; server-calculated Emergency/High/Routine priority; admin review, staff assignment, agent progress/resolution notes, admin closure, consumer reopening and feedback; immutable state-event history via database triggers; private evidence uploads to R2 (PNG/JPEG/WEBP, max 2 MB); admin statistics. No default admin or technician credentials are committed.
+Consumer account registration/login, 7-day server sessions and logout; role-scoped complaint lists; GPS coordinate and category validation; deduplicated complaint submissions; server-calculated Emergency/High/Routine priority; admin review, staff assignment, agent progress/resolution notes, admin closure, consumer reopening and feedback; immutable state-event history via database triggers; optional private evidence uploads to R2 when available (PNG/JPEG/WEBP, max 2 MB); admin statistics. No default admin or technician credentials are committed.
 
 ## Cloudflare Workers Builds: first-time automatic provisioning
 
-The original Cloudflare build error `Invalid _redirects configuration` was fixed by removing `public/_redirects`. The subsequent `binding DB ... valid database_id [10021]` resulted from an unresolved D1 database binding.
+The original Cloudflare build error `Invalid _redirects configuration` was fixed by removing `public/_redirects`. The subsequent `binding DB ... valid database_id [10021]` resulted from an unresolved D1 database binding. The D1 UUID has now been configured. A later build failed with **R2 activation error 10042**; photo storage has therefore been disabled for the initial deployment, without removing core complaint processing.
 
 **Only two Cloudflare-side prerequisites are necessary before automated provisioning can run:**
 
 1. Open the existing Worker **`powe-complaint-system` → Settings → Build**, and change **Deploy command** from `npx wrangler deploy` to **`npm run deploy`**. This Cloudflare dashboard setting is not read from `wrangler.jsonc`; changing code on GitHub cannot update it. 
-2. Give the Cloudflare **Build API token** sufficient permissions to list/create D1 databases, query/apply D1 migrations, list/create R2 buckets, and deploy Workers. The default token does **not** automatically include D1 permissions. Configure authorization in Cloudflare itself; do not share a token in chat or commit it to GitHub. R2 service activation may also be needed.
+2. Give the Cloudflare **Build API token** sufficient permissions to query/apply D1 migrations and deploy Workers. R2 permissions are only needed when photo storage is enabled. The default token does **not** automatically include D1 permissions. Configure authorization in Cloudflare itself; do not share a token in chat or commit it to GitHub. R2 service activation may also be needed.
 
-The command `npm run deploy` invokes `scripts/deploy.mjs` which: (i) discovers or creates the **`powerresolve-db`** D1 database, (ii) writes its UUID to the *temporary checkout's* Wrangler configuration, (iii) verifies or creates the private **`powerresolve-evidence`** R2 bucket, (iv) applies D1 migrations to the production database, and (v) deploys the Worker.
+The command `npm run deploy` invokes `scripts/deploy.mjs` which: (i) verifies the configured **`powerresolve-db`** D1 database UUID, (ii) skips R2 entirely unless its binding is explicitly configured, (iii) applies D1 migrations to the production database, and (iv) deploys the Worker. When R2 is configured but Cloudflare returns error 10042, the script can omit that optional binding to allow the main service to deploy.
 
-The committed `wrangler.jsonc` may retain `REPLACE_WITH_YOUR_D1_DATABASE_ID`; the deployment script resolves it **at build time**. You do **not** need to manually paste a UUID if the build token can list D1 resources.
+The committed `wrangler.jsonc` now includes the assigned production D1 UUID. The optional R2 binding is currently **absent**; the complaint form shows a notice in place of photo upload. To restore images later, activate R2 in Cloudflare, create `powerresolve-evidence`, and add the `EVIDENCE` R2 binding back to Wrangler configuration.
 
 After the build succeeds, find the public `workers.dev` URL in Cloudflare's Worker details; check `<PUBLIC_URL>/api/health`. Bootstrap your first administrator securely using the procedure below. Finally set the GitHub Actions repository variable `POWERRESOLVE_SERVICE_URL` to that verified HTTPS origin and build a **new** Android APK. The APK will open the configured service directly, without a server address prompt. Existing installed APKs cannot auto-connect retroactively.
 
-If the deployment fails, the script will stop with the first unauthorized or unavailable Cloudflare resource and print a diagnostic. It cannot overcome Cloudflare account restrictions, disabled R2, missing token scopes, or an unchanged Cloudflare deploy command.
+If the deployment fails, the script will stop with the first unauthorized or unavailable Cloudflare resource and print a diagnostic. It cannot overcome Cloudflare account restrictions, missing D1/Workers token scopes, or an unchanged Cloudflare deploy command. Disabled R2 no longer blocks deployment.
 
 Official references: [Workers Builds configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/), [D1 Wrangler commands](https://developers.cloudflare.com/d1/wrangler-commands/) and [R2 Wrangler commands](https://developers.cloudflare.com/workers/wrangler/commands/r2/).
 
@@ -46,7 +46,7 @@ npm run dev
 
 ## Alternative: deploy from an authorized workstation
 
-If Cloudflare Workers Builds cannot be granted D1 and R2 permissions, a trusted operator can sign in locally using `npx wrangler login` and run `npm run deploy` from this repository. The same script then creates/verifies resources, migrates the database and deploys. Avoid changing both deployment mechanisms simultaneously.
+If Cloudflare Workers Builds cannot be granted the necessary D1 permissions, a trusted operator can sign in locally using `npx wrangler login` and run `npm run deploy` from this repository. The same script then creates/verifies resources, migrates the database and deploys. Avoid changing both deployment mechanisms simultaneously.
 
 **First administrator setup is intentionally manual and requires a unique runtime secret:** run `npx wrangler secret put BOOTSTRAP_KEY` from an authorized workstation after the initial Worker exists. Generate and retain the secret privately, then call `POST /api/setup/admin` once with `{"alias":"YourAdminAlias","password":"your-unique-strong-password"}` and the `X-Bootstrap-Key` header. Do not transmit the secret in chat or put it in the public GitHub repository. Remove the bootstrap secret after the administrator has been created.
 
