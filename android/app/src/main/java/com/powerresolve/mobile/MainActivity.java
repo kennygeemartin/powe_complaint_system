@@ -4,7 +4,6 @@ import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
-import android.content.ContentValues;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -12,14 +11,12 @@ import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.provider.MediaStore;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.GeolocationPermissions;
 import android.webkit.SslErrorHandler;
 import android.net.http.SslError;
-import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
@@ -37,15 +34,12 @@ import android.widget.TextView;
  * No untrusted JavaScript interfaces and no cleartext traffic are enabled.
  */
 public class MainActivity extends Activity {
-    private static final int REQUEST_IMAGE = 310;
     private static final int REQUEST_LOCATION = 311;
     private final int navy = Color.rgb(20, 41, 80), blue = Color.rgb(43, 99, 238);
     private SharedPreferences preferences;
     private LinearLayout root;
     private WebView browser;
     private String serviceOrigin;
-    private ValueCallback<Uri[]> imageCallback;
-    private Uri capturedPhoto;
     private GeolocationPermissions.Callback geoCallback;
     private String geoOrigin;
 
@@ -116,7 +110,7 @@ public class MainActivity extends Activity {
         content.addView(title,fullWidth());
         TextView sub=text("Electricity complaints, in your pocket",16,Color.DKGRAY); sub.setGravity(Gravity.CENTER);
         content.addView(sub,fullWidth());
-        TextView note=text("Connect to your authorized PowerResolve Cloudflare service to register, report faults, attach photos, and track your cases.",15,Color.DKGRAY);
+        TextView note=text("Connect to your authorized PowerResolve Cloudflare service to register, report faults, and track your cases.",15,Color.DKGRAY);
         LinearLayout.LayoutParams noteLp=fullWidth();noteLp.topMargin=dp(30); content.addView(note,noteLp);
         if (warning != null) {
             TextView warn=text(warning,14,Color.rgb(163,35,45));
@@ -162,7 +156,7 @@ public class MainActivity extends Activity {
         root.addView(browser,new LinearLayout.LayoutParams(-1,0,1));
         WebSettings settings=browser.getSettings();settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);settings.setGeolocationEnabled(true);
-        settings.setAllowFileAccess(false);settings.setAllowContentAccess(true);
+        settings.setAllowFileAccess(false);settings.setAllowContentAccess(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         settings.setJavaScriptCanOpenWindowsAutomatically(false);
         settings.setSupportMultipleWindows(false);
@@ -200,26 +194,7 @@ public class MainActivity extends Activity {
                     callback.invoke(origin,true,false);
                 }else{geoCallback=callback;geoOrigin=origin;requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION},REQUEST_LOCATION);}
             }
-            @Override public boolean onShowFileChooser(WebView view,ValueCallback<Uri[]> callback,FileChooserParams params){
-                if(imageCallback!=null)imageCallback.onReceiveValue(null);imageCallback=callback;capturedPhoto=null;
-                Intent picker=new Intent(Intent.ACTION_GET_CONTENT);picker.addCategory(Intent.CATEGORY_OPENABLE);
-                picker.setType("image/*");
-                Intent chooser=Intent.createChooser(picker,"Select complaint photo");
-                try {
-                    ContentValues cv=new ContentValues();
-                    cv.put(MediaStore.Images.Media.DISPLAY_NAME,"PowerResolve_"+System.currentTimeMillis()+".jpg");
-                    cv.put(MediaStore.Images.Media.MIME_TYPE,"image/jpeg");
-                    capturedPhoto=getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,cv);
-                    Intent camera=new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-                    if(capturedPhoto!=null && camera.resolveActivity(getPackageManager())!=null){
-                        camera.putExtra(MediaStore.EXTRA_OUTPUT,capturedPhoto);
-                        camera.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION|Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                        chooser.putExtra(Intent.EXTRA_INITIAL_INTENTS,new Intent[]{camera});
-                    }
-                } catch(Exception ignored){capturedPhoto=null;}
-                try{startActivityForResult(chooser,REQUEST_IMAGE);return true;}
-                catch(Exception e){imageCallback.onReceiveValue(null);imageCallback=null;return false;}
-            }
+
         });
         browser.loadUrl(serviceOrigin + "/");
     }
@@ -227,16 +202,6 @@ public class MainActivity extends Activity {
         try {Uri base=Uri.parse(serviceOrigin);return "https".equalsIgnoreCase(uri.getScheme()) &&
             base.getHost().equalsIgnoreCase(uri.getHost()) && (uri.getPort()==-1 || uri.getPort()==443);
         } catch(Exception e){return false;}
-    }
-    @Override protected void onActivityResult(int request,int result,Intent data){
-        super.onActivityResult(request,result,data);
-        if(request==REQUEST_IMAGE && imageCallback!=null){
-            Uri selection=null;
-            if(result==RESULT_OK)selection=data!=null && data.getData()!=null ? data.getData():capturedPhoto;
-            imageCallback.onReceiveValue(selection==null?null:new Uri[]{selection});imageCallback=null;
-            if(result!=RESULT_OK && capturedPhoto!=null){try{getContentResolver().delete(capturedPhoto,null,null);}catch(Exception ignored){}}
-            capturedPhoto=null;
-        }
     }
     @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] grants){
         super.onRequestPermissionsResult(request,permissions,grants);
