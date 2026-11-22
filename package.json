@@ -4,13 +4,19 @@
   "private": true,
   "type": "module",
   "description": "Mobile-responsive electricity complaints research application on Cloudflare Workers, D1 and R2",
-  "engines": {"node": ">=22"},
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "test": "node --test tests/*.test.mjs",
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "deploy": "node scripts/deploy.mjs",
     "db:local": "wrangler d1 migrations apply powerresolve-db --local",
-    "db:remote": "wrangler d1 migrations apply powerresolve-db --remote"
+    "db:remote": "wrangler d1 migrations apply powerresolve-db --remote",
+    "deploy:raw": "wrangler deploy",
+    "deploy:prepare": "node scripts/deploy.mjs --prepare-only"
   },
-  "devDependencies": {"wrangler": "^4.68.0"}
+  "devDependencies": {
+    "wrangler": "^4.68.0"
+  }
 }
