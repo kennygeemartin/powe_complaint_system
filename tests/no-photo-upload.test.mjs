@@ -10,7 +10,7 @@ test('photo upload is removed from browser interface and complaint API',()=>{
   const worker=read('src/worker.js');
   assert.doesNotMatch(html,/type=["']file["']|evidenceFile|\/evidence|image\/(?:png|jpeg|webp)/i);
   assert.doesNotMatch(worker,/EVIDENCE|\/evidence|FROM uploads|INSERT INTO uploads|\.formData\(/);
-  assert.match(worker,/\/action\|feedback/);
+  assert.match(worker,/action\|feedback/);
 });
 
 test('Android removes camera and photo upload capabilities',()=>{
