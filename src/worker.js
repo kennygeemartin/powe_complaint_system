@@ -77,7 +77,10 @@ async function getCase(env,id){const c=await env.DB.prepare('SELECT * FROM compl
 async function route(req,env){
   const {pathname}=new URL(req.url),method=req.method;
   if(pathname==='/api/health'&&method==='GET'){
-    await env.DB.prepare('SELECT 1').first();return json({status:'ok',service:'PowerResolve Cloudflare demo',timestamp:now()});
+    if(!env.DB)fail(503,'Database binding unavailable');
+    try {await env.DB.prepare('SELECT COUNT(*) AS total FROM users').first()}
+    catch(e){console.error('D1 schema check failed',e?.message||'Unknown D1 error');fail(503,'Database not initialized. Apply the D1 migrations.')}
+    return json({status:'ok',service:'PowerResolve Cloudflare demo',timestamp:now()});
   }
   if(pathname==='/api/register'&&method==='POST'){
     const {alias,password}=authFields(await readJSON(req));return json({user_id:await addUser(env,alias,password)},200);
@@ -111,6 +114,12 @@ async function route(req,env){
   if(pathname==='/api/agents'&&method==='GET'){
     rolecheck(a,['admin']);
     const {results}=await env.DB.prepare("SELECT id,alias,area FROM users WHERE role='agent' ORDER BY alias").all();return json(results);
+  }
+  if(pathname==='/api/agents'&&method==='POST'){
+    rolecheck(a,['admin']);
+    const {alias,password}=authFields(await readJSON(req));
+    const user_id=await addUser(env,alias,password,'agent');
+    return json({user_id,alias,role:'agent'},201);
   }
   if(pathname==='/api/complaints'&&method==='POST'){
     rolecheck(a,['consumer']); const x=await readJSON(req);
