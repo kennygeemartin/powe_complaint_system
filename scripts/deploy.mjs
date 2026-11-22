@@ -24,8 +24,12 @@ function databaseFromWrangler() {
   let list;
   try {
     const raw = command(['d1','list','--json']).trim();
-    const start = raw.indexOf('[');
-    list = JSON.parse(start < 0 ? raw : raw.slice(start));
+    try { list = JSON.parse(raw); }
+    catch {
+      const start = raw.search(/[\\[{]/);
+      if (start < 0) throw new Error('No D1 JSON result');
+      list = JSON.parse(raw.slice(start));
+    }
   } catch (err) { fail('D1 listing failed. Set POWERRESOLVE_D1_DATABASE_ID to the UUID shown on your D1 database page (not the Cloudflare account ID).'); }
   const entries = Array.isArray(list) ? list : (list?.result || list?.databases);
   if (!Array.isArray(entries)) fail('Unexpected response from wrangler d1 list --json.');
