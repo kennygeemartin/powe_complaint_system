@@ -1,16 +1,15 @@
 /**
  * PowerResolve deployment bootstrap for authorized Cloudflare CI builds.
  *
- * Creates the D1 database, optionally sets up R2, applies D1 migrations,
+ * Locates or creates the D1 database, applies D1 migrations,
  * then deploys the Worker. The authenticated Cloudflare build token must have the
- * necessary D1, R2, and Workers permissions. No credentials are printed or saved.
+ * necessary D1 and Workers permissions. No credentials are printed or saved.
  */
 import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
 
 const configPath = 'wrangler.jsonc';
 const databaseName = 'powerresolve-db';
-const bucketName = 'powerresolve-evidence';
 const workerName = 'powe-complaint-system';
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const fail = message => {
@@ -70,9 +69,9 @@ if (config.name !== workerName) fail('Worker name must match ' + workerName + ',
 if (config.d1_databases?.length !== 1 || config.d1_databases[0].binding !== 'DB') {
   fail('Expected exactly one Cloudflare D1 database binding named DB.');
 }
-const r2Requested = config.r2_buckets?.some(r => r.binding === 'EVIDENCE' && r.bucket_name === bucketName) || false;
-if (config.r2_buckets?.length && !r2Requested) {
-  fail('Unexpected R2 binding; expected EVIDENCE -> powerresolve-evidence.');
+// Image upload is intentionally unsupported. Refuse obsolete storage bindings.
+if (Array.isArray(config.r2_buckets) && config.r2_buckets.length !== 0) {
+  fail('Remove r2_buckets from wrangler.jsonc: PowerResolve no longer uploads photos.');
 }
 
 const suppliedId = process.env.POWERRESOLVE_D1_DATABASE_ID?.trim();
@@ -101,34 +100,7 @@ fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n');
 console.log('[PowerResolve deployment] D1 configuration validated.');
 if (isDryRun) process.exit(0);
 
-// R2 is an optional enhancement. Core complaints must deploy without it.
-if (!r2Requested) {
-  console.log('[PowerResolve deployment] R2 disabled; deploying core service without photo uploads.');
-} else {
-  const info=cli(['r2','bucket','info',bucketName,'--json'],{optional:true});
-  if(info.status!==0){
-    const disabled=/(?:10042|enable R2|R2 subscription)/i.test((info.stderr||'')+(info.stdout||''));
-    if(disabled){
-      console.warn('[PowerResolve deployment] R2 is not activated; omitting its optional binding.');
-      delete config.r2_buckets;
-      fs.writeFileSync(configPath,JSON.stringify(config,null,2)+'\n');
-    }else{
-      const create=cli(['r2','bucket','create',bucketName,'--no-update-config'],{optional:true});
-      if(create.status!==0){
-        const error=(create.stderr||'')+(create.stdout||'');
-        if(/(?:10042|enable R2|R2 subscription)/i.test(error)){
-          console.warn('[PowerResolve deployment] R2 activation required; continuing without photo uploads.');
-          delete config.r2_buckets;
-          fs.writeFileSync(configPath,JSON.stringify(config,null,2)+'\n');
-        }else{
-          console.error(error.slice(-1000));
-          fail('R2 initialization failed for a reason other than subscription activation.');
-        }
-      }
-    }
-  }
-}
-console.log('[PowerResolve deployment] Applying database migrations.');
+console.log('[PowerResolve deployment] Applying D1 database migrations.');
 cli(['d1', 'migrations', 'apply', databaseName, '--remote'], { visible: true });
 console.log('[PowerResolve deployment] Database migrated; deploying Worker.');
 cli(['deploy'], { visible: true });
