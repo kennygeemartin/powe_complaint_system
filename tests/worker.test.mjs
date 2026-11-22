@@ -41,6 +41,10 @@ async function login(env,alias){const r=await call(env,'/api/login','POST',{alia
 test('Cloudflare Worker: authentication, complaint workflow, authorization and evidence',async t=>{
  const env=mockEnv(),ok=(name,fn)=>t.test(name,fn);
  await ok('public health reflects reachable D1',async()=>{const r=await call(env,'/api/health');assert.equal(r.status,200);assert.equal(r.body.status,'ok')});
+ await ok('health reports missing DB as unavailable',async()=>{
+   const r=await call({...env,DB:null},'/api/health');
+   assert.equal(r.status,503);
+ });
  await ok('browser interface served',async()=>{const r=await worker.fetch(new Request('https://test.example/'),env);assert.equal(r.status,200);assert.match(await r.text(),/PowerResolve/)});
  await ok('registration input constraints enforced',async()=>{assert.equal((await call(env,'/api/register','POST',{alias:'x',password:'bad'})).status,422)});
  const r1=await register(env,'ConsumerAlpha');assert.equal(r1.status,200);
@@ -60,6 +64,18 @@ test('Cloudflare Worker: authentication, complaint workflow, authorization and e
   assert.equal((await call(env,'/api/agents','GET',undefined,u.token)).status,403);
   assert.equal((await call(env,'/api/agents','GET',undefined,a.token)).status,200);
   assert.equal((await call(env,'/api/me','GET',undefined,ag.token)).body.role,'agent');
+ });
+ await ok('only administrators can provision technician accounts',async()=>{
+   assert.equal((await call(env,'/api/agents','POST',{alias:'NewTechOne',password:'LongPass123!'},u.token)).status,403);
+   assert.equal((await call(env,'/api/agents','POST',{alias:'x',password:'weak'},a.token)).status,422);
+   const created=await call(env,'/api/agents','POST',{alias:'NewTechOne',password:'LongPass123!'},a.token);
+   assert.equal(created.status,201);
+   assert.equal(created.body.role,'agent');
+   const loggedIn=await call(env,'/api/login','POST',{alias:'NewTechOne',password:'LongPass123!'});
+   assert.equal(loggedIn.status,200);
+   assert.equal(loggedIn.body.user.role,'agent');
+   const staff=await call(env,'/api/agents','GET',undefined,a.token);
+   assert.equal(staff.body.some(x=>x.alias==='NewTechOne'),true);
  });
  await ok('invalid hazard in billing category denied',async()=>{
   const r=await call(env,'/api/complaints','POST',{request_id:'sample-request-1',category:'Billing',details:'Meter shows excessive charges',address:'Street 24, Enugu',hazard:true},u.token);
