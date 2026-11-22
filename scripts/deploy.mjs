@@ -90,7 +90,7 @@ if (!uuidPattern.test(id)) {
   id = getDatabaseId(listDatabases());
   if (!id) {
     console.log('[PowerResolve deployment] Creating D1 database: ' + databaseName);
-    cli(['d1', 'create', databaseName], { visible: true });
+    cli(['d1', 'create', databaseName, '--no-update-config'], { visible: true });
     id = getDatabaseId(listDatabases());
   }
 }
@@ -104,7 +104,7 @@ if (isDryRun) process.exit(0);
 const bucketInfo = cli(['r2', 'bucket', 'info', bucketName, '--json'], { optional: true });
 if (bucketInfo.status !== 0) {
   console.log('[PowerResolve deployment] R2 bucket not found or not accessible; trying creation.');
-  cli(['r2', 'bucket', 'create', bucketName], { visible: true });
+  cli(['r2', 'bucket', 'create', bucketName, '--no-update-config'], { visible: true });
   cli(['r2', 'bucket', 'info', bucketName, '--json'], { visible: true });
 }
 console.log('[PowerResolve deployment] R2 bucket verified; applying database migrations.');
