@@ -14,7 +14,7 @@ It wraps the same responsive UI in a secure Android WebView, with:
 `wrangler.jsonc` still has an unresolved database ID; the app cannot use an undeployed backend.
 To remove the server-address prompt from APKs distributed to consumers, add a GitHub
 **repository variable** named `POWERRESOLVE_SERVICE_URL` with the exact, tested deployed
-HTTPS Worker origin (for example, `https://powerresolve-electricity-complaints.YOUR-SUBDOMAIN.workers.dev`).
+HTTPS Worker origin (for example, `https://powe-complaint-system.YOUR-SUBDOMAIN.workers.dev`).
 Then run **Actions → Build Android APK → Run workflow** and install its newly built APK.
 The fixed-service APK opens the website directly, hides the Server control and provides
 a retry screen when offline. Without this variable the APK stays in manual setup mode.
