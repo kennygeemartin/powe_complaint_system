@@ -8,22 +8,24 @@ The existing local research prototype used Python/FastAPI/SQLite. **This is a ne
 
 Consumer account registration/login, 7-day server sessions and logout; role-scoped complaint lists; GPS coordinate and category validation; deduplicated complaint submissions; server-calculated Emergency/High/Routine priority; admin review, staff assignment, agent progress/resolution notes, admin closure, consumer reopening and feedback; immutable state-event history via database triggers; private evidence uploads to R2 (PNG/JPEG/WEBP, max 2 MB); admin statistics. No default admin or technician credentials are committed.
 
-## Resolve the Cloudflare Build error `database_id` [10021]
+## Cloudflare Workers Builds: first-time automatic provisioning
 
-The earlier `public/_redirects` infinite-loop issue has been removed. A later failed build reported `binding DB of type d1 must have a valid database_id`. This is because the original `wrangler.jsonc` contains the literal `REPLACE_WITH_YOUR_D1_DATABASE_ID`.
+The original Cloudflare build error `Invalid _redirects configuration` was fixed by removing `public/_redirects`. The subsequent `binding DB ... valid database_id [10021]` resulted from an unresolved D1 database binding.
 
-**Cloudflare connected build (recommended):** Open your Worker `powe-complaint-system` → **Settings → Build**, and change **Deploy command** from `npx wrangler deploy` to **`npm run deploy`**. The new `scripts/deploy.mjs` runs a preflight, resolves the database ID, applies migrations on the remote D1 database, then deploys the Worker. The original Cloudflare command bypasses this script and will keep failing.
+**Only two Cloudflare-side prerequisites are necessary before automated provisioning can run:**
 
-1. Under Cloudflare **Storage & databases → D1**, ensure a database named `powerresolve-db` exists. Copy its **Database ID** (a UUID), **not** the Cloudflare account ID.
-2. In **Worker → Settings → Build → Build variables and secrets**, set **`POWERRESOLVE_D1_DATABASE_ID`** to that database UUID. This is an identifier, not a password. Alternatively, the deploy script attempts to find the database by name using `wrangler d1 list --json` if the build token permits D1 Read.
-3. The Cloudflare **Build API token** must be authorized for D1 operations: at minimum Workers Scripts Edit, **D1 Edit**, and the relevant R2 resource access. The default Workers Builds token may not include D1 permissions. Select or update an appropriately scoped token under **Settings → Build → API token**; **never commit or send the token**.
-4. Confirm the private R2 bucket `powerresolve-evidence` exists. Retry the production build, then verify the public `/api/health` route. The route now checks the real `users` table and returns 503 when migrations are missing.
-5. Set the runtime `BOOTSTRAP_KEY` secret only through Cloudflare **Settings → Variables & Secrets**; use the documented one-time admin provisioning flow, and remove the bootstrap key afterwards. The admin screen can then create technician accounts without manual SQL updates.
-6. When the public Worker URL works, set `POWERRESOLVE_SERVICE_URL` as a **GitHub Actions repository variable** to that HTTPS origin and build a fresh Android APK. Older APKs cannot auto-connect retroactively.
+1. Open the existing Worker **`powe-complaint-system` → Settings → Build**, and change **Deploy command** from `npx wrangler deploy` to **`npm run deploy`**. This Cloudflare dashboard setting is not read from `wrangler.jsonc`; changing code on GitHub cannot update it. 
+2. Give the Cloudflare **Build API token** sufficient permissions to list/create D1 databases, query/apply D1 migrations, list/create R2 buckets, and deploy Workers. The default token does **not** automatically include D1 permissions. Configure authorization in Cloudflare itself; do not share a token in chat or commit it to GitHub. R2 service activation may also be needed.
 
-**Do not put the Cloudflare account ID in `database_id`**; they are different identifiers. You can also replace the placeholder in `wrangler.jsonc` with the real UUID and use the original deploy command, but that does not automatically run migrations.
+The command `npm run deploy` invokes `scripts/deploy.mjs` which: (i) discovers or creates the **`powerresolve-db`** D1 database, (ii) writes its UUID to the *temporary checkout's* Wrangler configuration, (iii) verifies or creates the private **`powerresolve-evidence`** R2 bucket, (iv) applies D1 migrations to the production database, and (v) deploys the Worker.
 
-Cloudflare references: [Workers Builds configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/) and [D1 Wrangler commands](https://developers.cloudflare.com/d1/wrangler-commands/).
+The committed `wrangler.jsonc` may retain `REPLACE_WITH_YOUR_D1_DATABASE_ID`; the deployment script resolves it **at build time**. You do **not** need to manually paste a UUID if the build token can list D1 resources.
+
+After the build succeeds, find the public `workers.dev` URL in Cloudflare's Worker details; check `<PUBLIC_URL>/api/health`. Bootstrap your first administrator securely using the procedure below. Finally set the GitHub Actions repository variable `POWERRESOLVE_SERVICE_URL` to that verified HTTPS origin and build a **new** Android APK. The APK will open the configured service directly, without a server address prompt. Existing installed APKs cannot auto-connect retroactively.
+
+If the deployment fails, the script will stop with the first unauthorized or unavailable Cloudflare resource and print a diagnostic. It cannot overcome Cloudflare account restrictions, disabled R2, missing token scopes, or an unchanged Cloudflare deploy command.
+
+Official references: [Workers Builds configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/), [D1 Wrangler commands](https://developers.cloudflare.com/d1/wrangler-commands/) and [R2 Wrangler commands](https://developers.cloudflare.com/workers/wrangler/commands/r2/).
 
 ## Test without a Cloudflare account
 
@@ -42,22 +44,15 @@ npm run db:local
 npm run dev
 ```
 
-## Provision resources on your Cloudflare account
+## Alternative: deploy from an authorized workstation
 
-Cloudflare login is required to complete these steps. **Never share API tokens or login passwords in issues, commits, or chat.**
+If Cloudflare Workers Builds cannot be granted D1 and R2 permissions, a trusted operator can sign in locally using `npx wrangler login` and run `npm run deploy` from this repository. The same script then creates/verifies resources, migrates the database and deploys. Avoid changing both deployment mechanisms simultaneously.
 
-1. Install packages and authenticate: `npm install` and `npx wrangler login`.
-2. Create D1: `npx wrangler d1 create powerresolve-db`.
-3. Copy its `database_id` into `wrangler.jsonc`, replacing `REPLACE_WITH_YOUR_D1_DATABASE_ID`.
-4. Create a private evidence bucket: `npx wrangler r2 bucket create powerresolve-evidence` (R2 availability/account requirements may vary).
-5. Apply migration: `npm run db:remote`.
-6. Set a unique bootstrap secret: `npx wrangler secret put BOOTSTRAP_KEY` (paste it securely at the prompt). Provision this **before any first-admin request**; if Wrangler requires an initial Worker deployment before it accepts the secret, deploy then add the secret.
-7. Publish: `npm run deploy`.
-8. Verify `https://<YOUR_WORKER>.workers.dev/api/health` and load `https://<YOUR_WORKER>.workers.dev/`.
-9. Create the first admin with a one-time `POST /api/setup/admin` containing `{"alias":"YourAdminAlias","password":"long-unique-password"}`, header `X-Bootstrap-Key` containing the secret. Once an admin exists, this endpoint refuses subsequent admin creation. **Remove or rotate BOOTSTRAP_KEY** after initialization.
-10. After the administrator is signed in, review a received case and use **Create technician** in its assignment panel to create an agent account; the server checks the administrator role.
+**First administrator setup is intentionally manual and requires a unique runtime secret:** run `npx wrangler secret put BOOTSTRAP_KEY` from an authorized workstation after the initial Worker exists. Generate and retain the secret privately, then call `POST /api/setup/admin` once with `{"alias":"YourAdminAlias","password":"your-unique-strong-password"}` and the `X-Bootstrap-Key` header. Do not transmit the secret in chat or put it in the public GitHub repository. Remove the bootstrap secret after the administrator has been created.
 
-**Important:** This research application is not integrated with a utility; the initial launch is for demonstration only. Obtain explicit authorization, data-protection review, and conduct additional live security and integration tests before real consumer use.
+After administrator login, the admin interface can create technician accounts inside a case assignment panel. The server verifies the administrator role.
+
+**Deployment is not operational authorization.** PowerResolve remains a research demonstration; it is not connected to an electricity utility or an emergency dispatch channel. Do not enter real consumer details or rely on it for safety incidents until security, privacy, and operational validation are complete.
 
 ### Adding technician accounts
 
