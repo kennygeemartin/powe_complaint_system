@@ -7,7 +7,8 @@ on:
       - '.github/workflows/android-apk.yml'
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
+  statuses: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -59,3 +60,30 @@ jobs:
             android/app/build/outputs/apk/debug/PowerResolve-Android-debug.apk.sha256
           if-no-files-found: error
           retention-days: 30
+      - name: Publish installable APK on GitHub Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="android-v1.0.3-connected"
+          DIR="android/app/build/outputs/apk/debug"
+          ASSET="PowerResolve-Android-v1.0.3-connected.apk"
+          cp "$DIR/PowerResolve-Android-debug.apk" "$DIR/$ASSET"
+          sha256sum "$DIR/$ASSET" > "$DIR/$ASSET.sha256"
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --title "PowerResolve Android v1.0.3 (test APK)" \
+              --notes "Android client connected to PowerResolve Cloudflare Worker. Debug-signed for test devices; not a Play Store release." \
+              --prerelease
+          fi
+          gh release upload "$TAG" "$DIR/$ASSET" "$DIR/$ASSET.sha256" --repo "$GITHUB_REPOSITORY" --clobber
+          echo "APK URL: https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/$ASSET"
+      - name: Add GitHub status pointing to the APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          URL="https://github.com/$GITHUB_REPOSITORY/releases/download/android-v1.0.3-connected/PowerResolve-Android-v1.0.3-connected.apk"
+          gh api --method POST "repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" \
+            -f state=success -f context=PowerResolve-Android-APK \
+            -f description="Installable Android test APK available" -f target_url="$URL"
