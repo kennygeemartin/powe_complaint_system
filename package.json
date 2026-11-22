@@ -14,7 +14,10 @@
     "db:local": "wrangler d1 migrations apply powerresolve-db --local",
     "db:remote": "wrangler d1 migrations apply powerresolve-db --remote",
     "deploy:raw": "wrangler deploy",
-    "deploy:prepare": "node scripts/deploy.mjs --prepare-only"
+    "deploy:prepare": "node scripts/deploy.mjs --prepare-only",
+    "build:pwa": "node scripts/build-pwa-icons.mjs",
+    "predeploy": "npm run build:pwa",
+    "pretest": "npm run build:pwa"
   },
   "devDependencies": {
     "wrangler": "^4.68.0"
