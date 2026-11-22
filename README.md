@@ -1,31 +1,30 @@
 # PowerResolve — Cloudflare-ready electricity complaints demo
 
-**Status:** Cloudflare-ready deployment source, not an already provisioned live service. GitHub source is public; do **not** commit user records, credentials, R2 data or historical SQLite databases.
+**Status:** Cloudflare-ready deployment source, not an already provisioned live service. GitHub source is public; do **not** commit personal information, credentials or historical SQLite databases.
 
-The existing local research prototype used Python/FastAPI/SQLite. **This is a new Cloudflare-compatible implementation** using Cloudflare Workers (JavaScript), D1 (SQLite-compatible persistent database), optional R2 (private evidence images when enabled), and the original responsive web interface. The consumer, technician and administrator API endpoints remain compatible with the existing front-end. It does not build a native Flutter app or provide physical electricity repairs.
+The existing local research prototype used Python/FastAPI/SQLite. **This is a new Cloudflare-compatible implementation** using Cloudflare Workers (JavaScript), D1 (SQLite-compatible persistent database), and the original responsive web interface. No object storage or image-upload service is required. The consumer, technician and administrator API endpoints remain compatible with the existing front-end. It does not build a native Flutter app or provide physical electricity repairs.
 
 ## Implemented functionality
 
-Consumer account registration/login, 7-day server sessions and logout; role-scoped complaint lists; GPS coordinate and category validation; deduplicated complaint submissions; server-calculated Emergency/High/Routine priority; admin review, staff assignment, agent progress/resolution notes, admin closure, consumer reopening and feedback; immutable state-event history via database triggers; optional private evidence uploads to R2 when available (PNG/JPEG/WEBP, max 2 MB); admin statistics. No default admin or technician credentials are committed.
+Consumer account registration/login, 7-day server sessions and logout; role-scoped complaint lists; GPS coordinate and category validation; deduplicated complaint submissions; server-calculated Emergency/High/Routine priority; admin review, staff assignment, agent progress/resolution notes, admin closure, consumer reopening and feedback; immutable state-event history via database triggers; admin statistics. Complaints are text and location based; photo uploads are not supported. No default admin or technician credentials are committed.
 
-## Cloudflare Workers Builds: first-time automatic provisioning
+## Cloudflare Workers Builds: D1-only deployment
 
-The original Cloudflare build error `Invalid _redirects configuration` was fixed by removing `public/_redirects`. The subsequent `binding DB ... valid database_id [10021]` resulted from an unresolved D1 database binding. The D1 UUID has now been configured. A later build failed with **R2 activation error 10042**; photo storage has therefore been disabled for the initial deployment, without removing core complaint processing.
+PowerResolve uses **Cloudflare Workers and D1 only**. The consumer interface, the backend API, the Android application and the deployment script no longer support photo uploads. **Cloudflare R2 does not need to be activated, configured or paid for.**
 
-**Only two Cloudflare-side prerequisites are necessary before automated provisioning can run:**
+Earlier build errors involving redirects and the D1 database ID have been corrected. The D1 database ID is configured in `wrangler.jsonc`, and the Worker name is `powe-complaint-system`.
 
-1. Open the existing Worker **`powe-complaint-system` → Settings → Build**, and change **Deploy command** from `npx wrangler deploy` to **`npm run deploy`**. This Cloudflare dashboard setting is not read from `wrangler.jsonc`; changing code on GitHub cannot update it. 
-2. Give the Cloudflare **Build API token** sufficient permissions to query/apply D1 migrations and deploy Workers. R2 permissions are only needed when photo storage is enabled. The default token does **not** automatically include D1 permissions. Configure authorization in Cloudflare itself; do not share a token in chat or commit it to GitHub. R2 service activation may also be needed.
+To deploy from the Cloudflare connected GitHub build:
 
-The command `npm run deploy` invokes `scripts/deploy.mjs` which: (i) verifies the configured **`powerresolve-db`** D1 database UUID, (ii) skips R2 entirely unless its binding is explicitly configured, (iii) applies D1 migrations to the production database, and (iv) deploys the Worker. When R2 is configured but Cloudflare returns error 10042, the script can omit that optional binding to allow the main service to deploy.
+1. Under the Worker's build configuration, use **`npm run deploy`** as the deploy command. The repository's deployment script performs the remote D1 migration and then runs Wrangler deployment.
+2. Ensure the authorized build token has Workers and D1 permissions. Do not share the token in chat or store it in this public repository.
+3. Start a new build and inspect its deployment log. Verify the public `/api/health` URL; it checks that the D1 schema is ready.
 
-The committed `wrangler.jsonc` now includes the assigned production D1 UUID. The optional R2 binding is currently **absent**; the complaint form shows a notice in place of photo upload. To restore images later, activate R2 in Cloudflare, create `powerresolve-evidence`, and add the `EVIDENCE` R2 binding back to Wrangler configuration.
+The deployment script no longer calls R2 APIs. It rejects any obsolete `r2_buckets` configuration instead of re-enabling uploads.
 
-After the build succeeds, find the public `workers.dev` URL in Cloudflare's Worker details; check `<PUBLIC_URL>/api/health`. Bootstrap your first administrator securely using the procedure below. Finally set the GitHub Actions repository variable `POWERRESOLVE_SERVICE_URL` to that verified HTTPS origin and build a **new** Android APK. The APK will open the configured service directly, without a server address prompt. Existing installed APKs cannot auto-connect retroactively.
+After the live Worker URL is verified, add its HTTPS origin to GitHub Actions repository variable `POWERRESOLVE_SERVICE_URL`. Build a new Android APK using the repository's workflow. The configured APK opens the hosted application without requiring users to enter a server URL.
 
-If the deployment fails, the script will stop with the first unauthorized or unavailable Cloudflare resource and print a diagnostic. It cannot overcome Cloudflare account restrictions, missing D1/Workers token scopes, or an unchanged Cloudflare deploy command. Disabled R2 no longer blocks deployment.
-
-Official references: [Workers Builds configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/), [D1 Wrangler commands](https://developers.cloudflare.com/d1/wrangler-commands/) and [R2 Wrangler commands](https://developers.cloudflare.com/workers/wrangler/commands/r2/).
+Official references: [Cloudflare Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/), [D1 Wrangler commands](https://developers.cloudflare.com/d1/wrangler-commands/).
 
 ## Test without a Cloudflare account
 
@@ -39,7 +38,7 @@ The automated tests run the genuine Worker API handler against a SQLite-backed e
 
 ```bash
 npm install
-# First edit wrangler.jsonc to replace its D1 placeholder ID (see below).
+# Use the configured D1 database ID from wrangler.jsonc.
 npm run db:local
 npm run dev
 ```
@@ -66,7 +65,7 @@ Use the Cloudflare dashboard for audit/authorization of such changes. Never perm
 
 ## GitHub Actions deployment
 
-This repository contains two workflows: `ci.yml` validates source on every push; `deploy.yml` publishes only after you explicitly opt in. Under GitHub repository **Settings → Secrets and variables → Actions**, add the secrets `CLOUDFLARE_API_TOKEN` (a narrowly scoped Cloudflare Workers/D1/R2 deployment token) and `CLOUDFLARE_ACCOUNT_ID`; add the **repository variable** `CF_DEPLOY_ENABLED`=`true` only after D1/R2 provisioning, migration, and `wrangler.jsonc` configuration are complete. Then run **Actions → Deploy PowerResolve to Cloudflare → Run workflow**. Do not enable automatic deployment of unreviewed contributions.
+This repository contains two workflows: `ci.yml` validates source on every push; `deploy.yml` publishes only after you explicitly opt in. Under GitHub repository **Settings → Secrets and variables → Actions**, add the secrets `CLOUDFLARE_API_TOKEN` (a narrowly scoped Cloudflare Workers/D1 deployment token) and `CLOUDFLARE_ACCOUNT_ID`; add the **repository variable** `CF_DEPLOY_ENABLED`=`true` only after D1 configuration and token permissions are complete. Then run **Actions → Deploy PowerResolve to Cloudflare → Run workflow**. Do not enable automatic deployment of unreviewed contributions.
 
 Cloudflare documentation: [Workers settings](https://developers.cloudflare.com/workers/wrangler/configuration/), [D1 setup](https://developers.cloudflare.com/d1/get-started/), and [GitHub Actions](https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/).
 
@@ -84,10 +83,9 @@ Cloudflare documentation: [Workers settings](https://developers.cloudflare.com/w
 | `/api/complaints/:id` | GET | owner, assigned technician or admin |
 | `/api/complaints/:id/action` | POST | authorized role and legal status transition |
 | `/api/complaints/:id/feedback` | POST | owner of resolved case |
-| `/api/complaints/:id/evidence` | POST | consumer/owner with private R2 bucket |
 
 ## Limitations and security follow-up
 
-Do not claim these scripted workflows show faster electricity repair or real consumer adoption. The website is a research demonstration, not an emergency reporting channel. Before public operational use, introduce WAF/rate-limiting and account recovery, account verification, explicit terms/privacy policy, log redaction, monitoring/alerting, secure backups/retention, advanced file-content scanning, recovery/disaster procedures, accessible interactions and end-to-end Cloudflare tests. Browser sessions are stored in localStorage; for production consider secure HttpOnly cookie sessions, a CSRF strategy and a content security policy that does not rely on inline scripts. Geo-coordinates are sensitive. Avoid putting real records into demonstration accounts.
+Do not claim these scripted workflows show faster electricity repair or real consumer adoption. The website is a research demonstration, not an emergency reporting channel. Before public operational use, introduce WAF/rate-limiting and account recovery, account verification, explicit terms/privacy policy, log redaction, monitoring/alerting, secure backups/retention, recovery/disaster procedures, accessible interactions and end-to-end Cloudflare tests. Browser sessions are stored in localStorage; for production consider secure HttpOnly cookie sessions, a CSRF strategy and a content security policy that does not rely on inline scripts. Geo-coordinates are sensitive. Avoid putting real records into demonstration accounts.
 
 **Prior localhost research results:** The 160-case synthetic dataset and prior Python test logs are deliberately **not** published to GitHub. They establish only local-prototype behavior; Cloudflare port results must be measured separately.
