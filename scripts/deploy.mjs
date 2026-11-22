@@ -66,7 +66,7 @@ const getDatabaseId = list => {
 };
 
 const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-if (config.name !== workerName) fail('Expected Worker name ' + workerName + ', found ' + config.name);
+if (config.name !== workerName) fail('Worker name must match ' + workerName + ', found ' + config.name);
 if (config.d1_databases?.length !== 1 || config.d1_databases[0].binding !== 'DB') {
   fail('Expected exactly one Cloudflare D1 database binding named DB.');
 }
