@@ -1,0 +1,2 @@
+# For local first-admin creation only; never commit your real secret.
+BOOTSTRAP_KEY=replace-with-a-strong-unique-value

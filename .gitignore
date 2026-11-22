@@ -1,0 +1,15 @@
+node_modules/
+.wrangler/
+.dev.vars*
+!.dev.vars.example
+*.sqlite
+*.sqlite-*
+*.db
+.env*
+!.env.example
+uploads/
+__pycache__/
+results/
+screenshots/
+*.pyc
+.DS_Store
