@@ -4,6 +4,20 @@
 
 The existing local research prototype used Python/FastAPI/SQLite. **This is a new Cloudflare-compatible implementation** using Cloudflare Workers (JavaScript), D1 (SQLite-compatible persistent database), and the original responsive web interface. No object storage or image-upload service is required. The consumer, technician and administrator API endpoints remain compatible with the existing front-end. It does not build a native Flutter app or provide physical electricity repairs.
 
+## Open PowerResolve on mobile or install it as an app
+
+**Public Cloudflare Worker address:** [https://powe-complaint-system.kennygeemartin.workers.dev](https://powe-complaint-system.kennygeemartin.workers.dev)
+
+The user's Cloudflare build log of 22 November 2026 reported that this Worker deployed successfully. The exact URL is supplied by that log; a separate live browser validation of the post-update PWA assets is still required after the latest GitHub commits deploy.
+
+**Android (Chrome):** Visit the public link, choose **Install PowerResolve app** if the prompt is offered, or open Chrome's three-dot menu and select **Install app** or **Add to Home screen**. Launch PowerResolve from the new home-screen icon.
+
+**iPhone (Safari):** Open the same link in Safari, tap **Share**, then **Add to Home Screen**.
+
+The progressive web application provides a manifest, 192×192 and 512×512 icons, standalone display mode, and an offline information page. It does **not** store private user records, authorization responses, complaint lists, or API data in the service-worker cache. Reporting, tracking, and account login require an internet connection. The app does **not** dispatch electricity utility technicians.
+
+The icon generation script runs automatically as `npm run build:pwa` before `npm run deploy` and before `npm test`, so generated icons are included in the static assets uploaded to Cloudflare. Android APK distribution remains a separate optional workflow.
+
 ## Implemented functionality
 
 Consumer account registration/login, 7-day server sessions and logout; role-scoped complaint lists; GPS coordinate and category validation; deduplicated complaint submissions; server-calculated Emergency/High/Routine priority; admin review, staff assignment, agent progress/resolution notes, admin closure, consumer reopening and feedback; immutable state-event history via database triggers; admin statistics. Complaints are text and location based; photo uploads are not supported. No default admin or technician credentials are committed.
