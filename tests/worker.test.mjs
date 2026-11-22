@@ -19,10 +19,8 @@ function mockEnv(){
    };
   }
  };
- const files=new Map();
- const EVIDENCE={put:async(k,v)=>files.set(k,v),delete:async(k)=>files.delete(k)};
  const ASSETS={fetch:async()=>new Response('<h1>PowerResolve</h1>',{headers:{'Content-Type':'text/html'}})};
- return {DB,EVIDENCE,ASSETS,BOOTSTRAP_KEY:'long-test-bootstrap-secret',sqlite,files};
+ return {DB,ASSETS,BOOTSTRAP_KEY:'long-test-bootstrap-secret',sqlite};
 }
 async function call(env,path,method='GET',payload,token,headers={}){
  const opts={method,headers:{...headers}};
@@ -38,10 +36,9 @@ async function register(env,alias){return call(env,'/api/register','POST',{alias
 async function login(env,alias){const r=await call(env,'/api/login','POST',{alias,password:'DemoPass2026!'});assert.equal(r.status,200);return r.body}
 
 // All records and actors in this file are fictitious, local-only evaluation fixtures.
-test('Cloudflare Worker: authentication, complaint workflow, authorization and evidence',async t=>{
+test('Cloudflare Worker: authentication, complaint workflow and authorization',async t=>{
  const env=mockEnv(),ok=(name,fn)=>t.test(name,fn);
  await ok('public health reflects reachable D1',async()=>{const r=await call(env,'/api/health');assert.equal(r.status,200);assert.equal(r.body.status,'ok')});
- await ok('capabilities flag matches available storage',async()=>{const a=await call(env,'/api/capabilities');assert.equal(a.body.evidence_upload,true);const b=await call({...env,EVIDENCE:undefined},'/api/capabilities');assert.equal(b.body.evidence_upload,false)});
  await ok('health reports missing DB as unavailable',async()=>{
    const r=await call({...env,DB:null},'/api/health');
    assert.equal(r.status,503);
@@ -119,7 +116,7 @@ test('Cloudflare Worker: authentication, complaint workflow, authorization and e
  await ok('technician starts work',async()=>{
   assert.equal((await call(env,`/api/complaints/${id}/action`,'POST',{action:'start'},ag.token)).body.status,'in_progress');
  });
- await ok('resolve requires evidence note',async()=>{
+ await ok('resolution requires a sufficiently detailed work note',async()=>{
   assert.equal((await call(env,`/api/complaints/${id}/action`,'POST',{action:'resolve',note:'short'},ag.token)).status,422);
  });
  await ok('technician resolves test case with note',async()=>{
@@ -141,18 +138,16 @@ test('Cloudflare Worker: authentication, complaint workflow, authorization and e
  await ok('technician resumes reopened case',async()=>{
   assert.equal((await call(env,`/api/complaints/${id}/action`,'POST',{action:'resume'},ag.token)).body.status,'in_progress');
  });
- await ok('cross-account evidence upload rejected',async()=>{
-  const form=new FormData();form.append('file',new File([new Uint8Array([137,80,78,71,13,10,26,10,0,0])],'image.png',{type:'image/png'}));
-  const r=await call(env,`/api/complaints/${id}/evidence`,'POST',form,other.token);assert.equal(r.status,403);
+ await ok('photo-upload endpoint is not supported',async()=>{
+   const form=new FormData();
+   form.append('file',new File(['image data'],'image.png',{type:'image/png'}));
+   const response=await call(env,`/api/complaints/${id}/evidence`,'POST',form,u.token);
+   assert.equal(response.status,404);
  });
- await ok('invalid signature rejected',async()=>{
-  const form=new FormData();form.append('file',new File(['this-is-not-a-png'],'bad.png',{type:'image/png'}));
-  assert.equal((await call(env,`/api/complaints/${id}/evidence`,'POST',form,u.token)).status,415);
- });
- await ok('correctly signed image stored in private R2',async()=>{
-  const form=new FormData();form.append('file',new File([new Uint8Array([137,80,78,71,13,10,26,10,0,0,0,0])],'image.png',{type:'image/png'}));
-  assert.equal((await call(env,`/api/complaints/${id}/evidence`,'POST',form,u.token)).body.stored,true);
-  assert.equal(env.files.size,1);
+ await ok('complaint details contain no image evidence fields',async()=>{
+   const response=await call(env,`/api/complaints/${id}`,'GET',undefined,u.token);
+   assert.equal(response.status,200);
+   assert.equal(Object.hasOwn(response.body,'evidence'),false);
  });
  await ok('statistics are scoped to the current role',async()=>{
   assert.equal((await call(env,'/api/stats','GET',undefined,u.token)).body.total,1);
