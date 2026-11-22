@@ -18,6 +18,12 @@ The progressive web application provides a manifest, 192×192 and 512×512 icons
 
 The icon generation script runs automatically as `npm run build:pwa` before `npm run deploy` and before `npm test`, so generated icons are included in the static assets uploaded to Cloudflare. Android APK distribution remains a separate optional workflow.
 
+## Registration issue repaired for Cloudflare Workers
+
+A screenshot from the public site showed **Internal server error** after consumer registration. The previous Worker attempted to derive a password hash with 160,000 PBKDF2 iterations, but Cloudflare's production workerd runtime rejects any single PBKDF2 operation above 100,000 iterations. The new code uses exactly **100,000** for both password creation and verification. Regression tests simulate that production limit to catch accidental reintroduction; the same test fails with the former 160,000 setting and passes with 100,000. Cloudflare's runtime restriction is documented in [workerd issue #1346](https://github.com/cloudflare/workerd/issues/1346).
+
+A freshly deployed version reports `"release":"auth-workers-pbkdf2-fix"` at [`/api/health`](https://powe-complaint-system.kennygeemartin.workers.dev/api/health). Confirm this release marker and `"status":"ok"` before retrying registration with a **new demonstration alias**. A successful build is necessary but does not by itself verify a real user can register; if HTTP 500 persists, inspect Cloudflare Worker Observability logs for the actual exception and validate the D1 users table. Do not post passwords, session tokens, or API keys in reports.
+
 ## Implemented functionality
 
 Consumer account registration/login, 7-day server sessions and logout; role-scoped complaint lists; GPS coordinate and category validation; deduplicated complaint submissions; server-calculated Emergency/High/Routine priority; admin review, staff assignment, agent progress/resolution notes, admin closure, consumer reopening and feedback; immutable state-event history via database triggers; admin statistics. Complaints are text and location based; photo uploads are not supported. No default admin or technician credentials are committed.
