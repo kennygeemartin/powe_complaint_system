@@ -3,7 +3,7 @@
 This is the **Android-first companion** to the PowerResolve Cloudflare Worker web app.
 It wraps the same responsive UI in a secure Android WebView, with:
 
-- An initial secure HTTPS service-address screen (no Cloudflare URL is yet provisioned)
+- Automatic HTTPS service connection when `POWERRESOLVE_SERVICE_URL` is embedded at build time; a manual setup screen for developer testing otherwise
 - Android 10+ support, large touch controls and bottom navigation in the hosted UI
 - Runtime GPS permissions and device-location integration
 - Photo selection and supported camera capture for evidence uploads
@@ -12,8 +12,13 @@ It wraps the same responsive UI in a secure Android WebView, with:
 
 **This APK needs a live Cloudflare Worker URL to function.** The existing Cloudflare
 `wrangler.jsonc` still has an unresolved database ID; the app cannot use an undeployed backend.
-Enter the deployed URL under **Connect securely** on the first launch. The base URL can
-later be changed using **Server** in the app header.
+To remove the server-address prompt from APKs distributed to consumers, add a GitHub
+**repository variable** named `POWERRESOLVE_SERVICE_URL` with the exact, tested deployed
+HTTPS Worker origin (for example, `https://powerresolve-electricity-complaints.YOUR-SUBDOMAIN.workers.dev`).
+Then run **Actions → Build Android APK → Run workflow** and install its newly built APK.
+The fixed-service APK opens the website directly, hides the Server control and provides
+a retry screen when offline. Without this variable the APK stays in manual setup mode.
+Never use the example hostname as a real service URL.
 
 ## Build on GitHub (recommended)
 
