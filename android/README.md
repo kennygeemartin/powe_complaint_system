@@ -6,12 +6,11 @@ It wraps the same responsive UI in a secure Android WebView, with:
 - Automatic HTTPS service connection when `POWERRESOLVE_SERVICE_URL` is embedded at build time; a manual setup screen for developer testing otherwise
 - Android 10+ support, large touch controls and bottom navigation in the hosted UI
 - Runtime GPS permissions and device-location integration
-- Photo selection and supported camera capture for evidence uploads
 - Back navigation, external-link handling and secure HTTPS-only content
 - No preinstalled usernames, passwords, tokens or real user records
 
 **This APK needs a live Cloudflare Worker URL to function.** The existing Cloudflare
-`wrangler.jsonc` still has an unresolved database ID; the app cannot use an undeployed backend.
+the D1 database is now configured in the repository; the app still requires a successfully deployed Worker backend.
 To remove the server-address prompt from APKs distributed to consumers, add a GitHub
 **repository variable** named `POWERRESOLVE_SERVICE_URL` with the exact, tested deployed
 HTTPS Worker origin (for example, `https://powe-complaint-system.YOUR-SUBDOMAIN.workers.dev`).
@@ -43,7 +42,7 @@ Gradle plugin 8.7.3 and Gradle 8.9. Run `:app:assembleDebug`.
 The Android app requests location permission only when a user chooses **Use device location**;
 no background location or unrestricted file access is requested. It does not install a
 JavaScript interface, refuses HTTP, and restricts in-app navigation to the configured host.
-Photos remain subject to the host service's server-side limits (PNG/JPEG/WEBP, 2 MB).
+Photo attachment, camera and gallery access have been removed. Complaints use descriptions, categories, addresses, and optional GPS coordinates only.
 
 ## Limits
 
