@@ -7,6 +7,7 @@ import worker from '../src/worker.js';
 function mockEnv(){
  const sqlite=new DatabaseSync(':memory:');
  sqlite.exec(fs.readFileSync(new URL('../migrations/0001_initial.sql',import.meta.url),'utf8'));
+ sqlite.exec(fs.readFileSync(new URL('../migrations/0002_specialist_dispatch.sql',import.meta.url),'utf8'));
  const DB={
   prepare(sql){
    const stmt=sqlite.prepare(sql);
