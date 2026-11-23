@@ -1,7 +1,7 @@
 plugins { id 'com.android.application' }
 
 // A deployed HTTPS origin can be embedded in the APK. Blank keeps developer setup mode.
-def configuredServiceUrl = (System.getenv('POWERRESOLVE_SERVICE_URL') ?: 'https://powe-complaint-system.kennygeemartin.workers.dev').trim()
+def configuredServiceUrl = (System.getenv('POWERRESOLVE_SERVICE_URL') ?: 'https://powe-complaint-system.powerresolve.workers.dev').trim()
 if (configuredServiceUrl && !(configuredServiceUrl ==~ /^https:\/\/[a-zA-Z0-9][a-zA-Z0-9.-]*(:443)?\/?$/)) {
     throw new GradleException('POWERRESOLVE_SERVICE_URL must be an HTTPS origin without path or query.')
 }
@@ -15,8 +15,8 @@ android {
         applicationId 'com.powerresolve.mobile'
         minSdk 29
         targetSdk 35
-        versionCode 3
-        versionName '1.0.3-connected'
+        versionCode 4
+        versionName '1.0.4-powerresolve'
         buildConfigField 'String', 'SERVICE_URL', '"' + configuredServiceUrl + '"'
     }
     buildTypes {
