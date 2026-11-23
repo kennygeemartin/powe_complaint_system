@@ -6,7 +6,7 @@ The existing local research prototype used Python/FastAPI/SQLite. **This is a ne
 
 ## Open PowerResolve on mobile or install it as an app
 
-**Public Cloudflare Worker address:** [https://powe-complaint-system.kennygeemartin.workers.dev](https://powe-complaint-system.kennygeemartin.workers.dev)
+**Public Cloudflare Worker address:** [https://powe-complaint-system.powerresolve.workers.dev](https://powe-complaint-system.powerresolve.workers.dev)
 
 The user's Cloudflare build log of 22 November 2026 reported that this Worker deployed successfully. The exact URL is supplied by that log; a separate live browser validation of the post-update PWA assets is still required after the latest GitHub commits deploy.
 
@@ -22,7 +22,7 @@ The icon generation script runs automatically as `npm run build:pwa` before `npm
 
 A screenshot from the public site showed **Internal server error** after consumer registration. The previous Worker attempted to derive a password hash with 160,000 PBKDF2 iterations, but Cloudflare's production workerd runtime rejects any single PBKDF2 operation above 100,000 iterations. The new code uses exactly **100,000** for both password creation and verification. Regression tests simulate that production limit to catch accidental reintroduction; the same test fails with the former 160,000 setting and passes with 100,000. Cloudflare's runtime restriction is documented in [workerd issue #1346](https://github.com/cloudflare/workerd/issues/1346).
 
-A freshly deployed version reports `"release":"auth-workers-pbkdf2-fix"` at [`/api/health`](https://powe-complaint-system.kennygeemartin.workers.dev/api/health). Confirm this release marker and `"status":"ok"` before retrying registration with a **new demonstration alias**. A successful build is necessary but does not by itself verify a real user can register; if HTTP 500 persists, inspect Cloudflare Worker Observability logs for the actual exception and validate the D1 users table. Do not post passwords, session tokens, or API keys in reports.
+A freshly deployed version reports `"release":"auth-workers-pbkdf2-fix"` at [`/api/health`](https://powe-complaint-system.powerresolve.workers.dev/api/health). Confirm this release marker and `"status":"ok"` before retrying registration with a **new demonstration alias**. A successful build is necessary but does not by itself verify a real user can register; if HTTP 500 persists, inspect Cloudflare Worker Observability logs for the actual exception and validate the D1 users table. Do not post passwords, session tokens, or API keys in reports.
 
 ## Mobile-first interface redesign (November 2026)
 
@@ -30,7 +30,7 @@ PowerResolve now uses an external shared design system in `public/styles.css` in
 
 At narrow phone widths, the sidebar becomes a **labeled bottom navigation bar** with simple SVG icons, and the six-column complaint table becomes vertically stacked, labeled case cards rather than requiring horizontal scrolling. Registration, consumer complaints, technician actions, administrator views and the existing PWA install controls all use the same stylesheet. Keyboard focus indicators and reduced-motion preferences are supported.
 
-**Check the deployed design:** Open [PowerResolve](https://powe-complaint-system.kennygeemartin.workers.dev/) after the newest Cloudflare build succeeds. If the previous style remains in a cached browser tab, refresh the page fully; installed PWAs should be closed and reopened after the deployment. These code changes do not add photo uploads or R2.
+**Check the deployed design:** Open [PowerResolve](https://powe-complaint-system.powerresolve.workers.dev/) after the newest Cloudflare build succeeds. If the previous style remains in a cached browser tab, refresh the page fully; installed PWAs should be closed and reopened after the deployment. These code changes do not add photo uploads or R2.
 
 ## Developer credit and branded public routing
 
@@ -40,11 +40,11 @@ The application displays the same accessible, responsive developer footer on pub
 - **Phone:** [0813 234 8235](tel:08132348235)
 - **Email:** [annastasiachinaza2@gmail.com](mailto:annastasiachinaza2@gmail.com)
 
-The original public Worker address remains `https://powe-complaint-system.kennygeemartin.workers.dev`. The substring `kennygeemartin` is the **Cloudflare account-wide** `workers.dev` subdomain, and cannot be removed by changing this application's Worker name or HTML. Changing that account-wide subdomain could disrupt other Workers, so the repository does not do it automatically.
+The Cloudflare account-wide `workers.dev` subdomain has been changed by the account owner from `kennygeemartin` to `powerresolve`. The new published hostname supplied by the owner is `https://powe-complaint-system.powerresolve.workers.dev`. The old hostname should not be used for new installs or Android builds. The live response of the new endpoint must still be verified after publication.
 
 For a dedicated, production-suitable branded hostname, use a **domain already owned and activated in the Cloudflare account**. The deployment script now accepts the optional build environment variable `POWERRESOLVE_CUSTOM_DOMAIN` with that exact hostname (e.g. `app.your-owned-domain.example`). On the next `npm run deploy`, it validates the hostname and configures `routes:[{pattern:<hostname>,custom_domain:true}]`. Cloudflare then handles the Custom Domain's DNS record and TLS certificate. No live branded domain is claimed until DNS ownership and a successful production deployment are confirmed.
 
-The original `workers.dev` route remains enabled until the replacement has been verified. After a branded hostname is live, set the Android build variable `POWERRESOLVE_SERVICE_URL` to its HTTPS origin to generate a newly connected APK. The PWA itself uses relative links and will work directly under any configured hostname. See [Cloudflare custom domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/) and [workers.dev account subdomains](https://developers.cloudflare.com/workers/configuration/routing/workers-dev/).
+The new `workers.dev` route is now the target for all Android v1.0.4 builds. The Android workflow explicitly uses the new HTTPS origin even if a stale repository variable exists. The PWA itself uses relative links and works directly under this hostname. Existing PWA installations tied to the old origin may need to be installed again from the new address. See [Cloudflare custom domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/) and [workers.dev account subdomains](https://developers.cloudflare.com/workers/configuration/routing/workers-dev/).
 
 ## Implemented functionality
 
@@ -64,7 +64,7 @@ To deploy from the Cloudflare connected GitHub build:
 
 The deployment script no longer calls R2 APIs. It rejects any obsolete `r2_buckets` configuration instead of re-enabling uploads.
 
-After the live Worker URL is verified, add its HTTPS origin to GitHub Actions repository variable `POWERRESOLVE_SERVICE_URL`. Build a new Android APK using the repository's workflow. The configured APK opens the hosted application without requiring users to enter a server URL.
+Android v1.0.4 uses the new `powerresolve.workers.dev` service URL directly in its build workflow. A newly built APK opens the hosted application without requiring users to enter a server URL. The workflow must pass a real `/api/health` check before the APK is published.
 
 Official references: [Cloudflare Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/), [D1 Wrangler commands](https://developers.cloudflare.com/d1/wrangler-commands/).
 
