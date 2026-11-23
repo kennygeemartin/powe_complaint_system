@@ -149,6 +149,123 @@ async function route(req,env){
   }
   const a=await actor(req,env);
   if(pathname==='/api/me'&&method==='GET')return json(a);
+  // The complete team/dispatch configuration is only visible to administrators.
+  if(pathname==='/api/staff'&&method==='GET'){
+    rolecheck(a,['admin']);
+    const {results}=await env.DB.prepare(`
+      SELECT u.id,u.alias,u.area,p.display_name,p.specialty,p.active,p.max_open_cases,
+             (SELECT COUNT(*) FROM complaints c WHERE c.assigned_to=u.id
+               AND c.status IN ('assigned','in_progress','reopened')) AS open_cases
+      FROM users u LEFT JOIN staff_profiles p ON p.user_id=u.id
+      WHERE u.role='agent' ORDER BY p.specialty,u.alias
+    `).all();
+    return json(results.map(x=>({...x,active:x.active===1})));
+  }
+  if(pathname==='/api/staff'&&method==='POST'){
+    rolecheck(a,['admin']);
+    const x=await readJSON(req);
+    const generated=(!x.password);
+    const password=generated?randomHex(16):x.password;
+    const staff=await createSpecialist(env,{...x,password});
+    let dispatch={assigned:0};
+    if(staff.active){
+      try{dispatch=await assignPending(env,staff.specialty,35)}
+      catch(e){console.error('Queued dispatch after staff creation failed',e?.message)}
+    }
+    return json({...staff,temporary_password:generated?password:undefined,
+      backlog_assigned:dispatch.assigned},201);
+  }
+  if(pathname==='/api/staff/starter-accounts'&&method==='POST'){
+    rolecheck(a,['admin']);
+    const templates=[
+      ['TeamOutage','Outage','Outage and supply restoration'],
+      ['TeamMeter','Meter fault','Metering and meter faults'],
+      ['TeamBilling','Billing','Billing and customer accounts'],
+      ['TeamSafety','Safety hazard','Electrical safety'],
+      ['TeamVoltage','Voltage fluctuation','Voltage quality'],
+      ['TeamTransformer','Transformer fault','Distribution transformers']
+    ];
+    const results=[];
+    for(const [base,specialty,display_name] of templates){
+      const exists=await env.DB.prepare(
+        'SELECT user_id FROM staff_profiles WHERE specialty=? LIMIT 1'
+      ).bind(specialty).first();
+      if(exists){results.push({specialty,skipped:true,reason:'Specialist already exists'});continue}
+      let alias=null;
+      for(let suffix=1;suffix<99;suffix++){
+        const candidate=base+String(suffix).padStart(2,'0');
+        const taken=await env.DB.prepare('SELECT id FROM users WHERE alias=?').bind(candidate).first();
+        if(!taken){alias=candidate;break}
+      }
+      if(!alias){results.push({specialty,skipped:true,reason:'No available alias'});continue}
+      const password=randomHex(16);
+      const created=await createSpecialist(env,{
+        alias,password,display_name,specialty,active:false,max_open_cases:12
+      });
+      results.push({...created,temporary_password:password});
+    }
+    return json({created:results.filter(x=>!x.skipped).length,staff:results,
+      note:'Starter accounts are inactive until a real staff member receives credentials and is activated.'});
+  }
+  const staffMatch=pathname.match(/^\/api\/staff\/(\d+)$/);
+  if(staffMatch&&method==='PATCH'){
+    rolecheck(a,['admin']);
+    const id=Number(staffMatch[1]),x=await readJSON(req);
+    const user=await env.DB.prepare("SELECT id,alias FROM users WHERE id=? AND role='agent'").bind(id).first();
+    if(!user)fail(404,'Staff account not found');
+    const prior=await env.DB.prepare('SELECT * FROM staff_profiles WHERE user_id=?').bind(id).first();
+    const specialty=x.specialty===undefined?(prior?.specialty??''):clean(x.specialty);
+    if(!SPECIALTIES.includes(specialty))fail(422,'Select a valid staff specialty');
+    const active=x.active===undefined?(prior?.active===1):x.active;
+    if(typeof active!=='boolean')fail(422,'Active must be true or false');
+    const displayName=x.display_name===undefined?(prior?.display_name||user.alias):clean(x.display_name);
+    if(displayName.length<3||displayName.length>90)fail(422,'Staff name must contain 3–90 characters');
+    const maxCases=x.max_open_cases===undefined?(prior?.max_open_cases??12):
+      ensureInt(x.max_open_cases,1,100,'Maximum open cases');
+    const reassigned=(!active)||(prior&&specialty!==prior.specialty);
+    if(reassigned){
+      const busy=await env.DB.prepare(
+        "SELECT COUNT(*) AS total FROM complaints WHERE assigned_to=? AND status IN ('in_progress','reopened')"
+      ).bind(id).first();
+      if(busy.total>0)fail(409,'Staff member has active or reopened work; complete or transfer it before changing specialty or deactivating.');
+    }
+    const ts=now();
+    if(prior){
+      await env.DB.prepare(`UPDATE staff_profiles SET display_name=?,specialty=?,active=?,max_open_cases=?,updated_at=?
+        WHERE user_id=?`).bind(displayName,specialty,active?1:0,maxCases,ts,id).run();
+    }else{
+      await env.DB.prepare(`INSERT INTO staff_profiles
+        (user_id,display_name,specialty,active,max_open_cases,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?)`).bind(id,displayName,specialty,active?1:0,maxCases,ts,ts).run();
+    }
+    if(reassigned){
+      await env.DB.prepare(`UPDATE complaints SET status='received',assigned_to=NULL,assigned_at=NULL,
+        updated_at=?,updated_by=?,last_note=? WHERE assigned_to=? AND status='assigned'`)
+        .bind(ts,a.id,'Requeued due to staff profile update',id).run();
+    }
+    let distributed={assigned:0};
+    try{distributed=await assignPending(env,null,70)}catch(e){console.error('Post-update dispatch failed',e?.message)}
+    return json({id,alias:user.alias,display_name:displayName,specialty,active,
+      max_open_cases:maxCases,backlog_assigned:distributed.assigned});
+  }
+  if(pathname==='/api/dispatch/overview'&&method==='GET'){
+    rolecheck(a,['admin']);
+    const [pending,team]=await Promise.all([
+      env.DB.prepare(`SELECT category,priority,COUNT(*) AS total FROM complaints
+        WHERE assigned_to IS NULL AND status IN ('received','reviewed')
+        GROUP BY category,priority ORDER BY category,priority`).all(),
+      env.DB.prepare('SELECT COUNT(*) AS total FROM staff_profiles WHERE active=1').first()
+    ]);
+    return json({pending:pending.results,pending_total:pending.results.reduce((n,x)=>n+x.total,0),
+      active_staff:team.total,specialties:SPECIALTIES});
+  }
+  if(pathname==='/api/dispatch/run'&&method==='POST'){
+    rolecheck(a,['admin']);
+    const x=await readJSON(req);
+    const specialty=x.specialty==null?null:clean(x.specialty);
+    if(specialty!==null&&!SPECIALTIES.includes(specialty))fail(422,'Invalid specialty filter');
+    return json(await assignPending(env,specialty,100));
+  }
   if(pathname==='/api/agents'&&method==='GET'){
     rolecheck(a,['admin']);
     const {results}=await env.DB.prepare("SELECT id,alias,area FROM users WHERE role='agent' ORDER BY alias").all();return json(results);
