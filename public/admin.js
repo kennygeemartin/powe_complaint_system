@@ -101,6 +101,7 @@ function staffPage(staff,overview){
           <input id="staffMax-${s.id}" type="number" value="${s.max_open_cases||12}" min="1" max="100" required/></div></div>
         <label class="ops-check"><input type="checkbox" id="staffEnabled-${s.id}" ${s.active?'checked':''}/> Active and assignable</label>
         <button class="action outline" type="submit">Save staff changes</button>
+        <button class="textbtn" type="button" onclick="resetStaffPassword(${s.id})">Reset staff password</button>
       </form>`).join(''):'<p class="sub">There are no technician accounts yet.</p>'}
     </div></div>`;
 }
@@ -155,6 +156,16 @@ async function manageUpdateStaff(event,id){
     alertMsg('Staff updated. '+result.backlog_assigned+' queued cases assigned.');
   }catch(e){alertMsg(e.message,true)}
   finally{if(button&&button.isConnected)button.disabled=false}
+}
+async function resetStaffPassword(id){
+  if(!confirm('Reset this staff password and sign out all existing sessions?'))return;
+  try{
+    const changed=await api('/staff/'+id+'/reset-password','POST',{});
+    await render();
+    showStaffCredentials([{alias:changed.alias,specialty:'New temporary staff password',
+      temporary_password:changed.temporary_password}]);
+    alertMsg('Password changed. Share the new credential privately with the technician.');
+  }catch(e){alertMsg(e.message,true)}
 }
 async function runDispatch(){
   try{
