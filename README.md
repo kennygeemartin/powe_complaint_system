@@ -32,6 +32,20 @@ At narrow phone widths, the sidebar becomes a **labeled bottom navigation bar** 
 
 **Check the deployed design:** Open [PowerResolve](https://powe-complaint-system.kennygeemartin.workers.dev/) after the newest Cloudflare build succeeds. If the previous style remains in a cached browser tab, refresh the page fully; installed PWAs should be closed and reopened after the deployment. These code changes do not add photo uploads or R2.
 
+## Developer credit and branded public routing
+
+The application displays the same accessible, responsive developer footer on public authentication and all logged-in pages:
+
+- **Proudly built by Eze Annastasia Chinaza · PGD No. 735**
+- **Phone:** [0813 234 8235](tel:08132348235)
+- **Email:** [annastasiachinaza2@gmail.com](mailto:annastasiachinaza2@gmail.com)
+
+The original public Worker address remains `https://powe-complaint-system.kennygeemartin.workers.dev`. The substring `kennygeemartin` is the **Cloudflare account-wide** `workers.dev` subdomain, and cannot be removed by changing this application's Worker name or HTML. Changing that account-wide subdomain could disrupt other Workers, so the repository does not do it automatically.
+
+For a dedicated, production-suitable branded hostname, use a **domain already owned and activated in the Cloudflare account**. The deployment script now accepts the optional build environment variable `POWERRESOLVE_CUSTOM_DOMAIN` with that exact hostname (e.g. `app.your-owned-domain.example`). On the next `npm run deploy`, it validates the hostname and configures `routes:[{pattern:<hostname>,custom_domain:true}]`. Cloudflare then handles the Custom Domain's DNS record and TLS certificate. No live branded domain is claimed until DNS ownership and a successful production deployment are confirmed.
+
+The original `workers.dev` route remains enabled until the replacement has been verified. After a branded hostname is live, set the Android build variable `POWERRESOLVE_SERVICE_URL` to its HTTPS origin to generate a newly connected APK. The PWA itself uses relative links and will work directly under any configured hostname. See [Cloudflare custom domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/) and [workers.dev account subdomains](https://developers.cloudflare.com/workers/configuration/routing/workers-dev/).
+
 ## Implemented functionality
 
 Consumer account registration/login, 7-day server sessions and logout; role-scoped complaint lists; GPS coordinate and category validation; deduplicated complaint submissions; server-calculated Emergency/High/Routine priority; admin review, staff assignment, agent progress/resolution notes, admin closure, consumer reopening and feedback; immutable state-event history via database triggers; admin statistics. Complaints are text and location based; photo uploads are not supported. No default admin or technician credentials are committed.
