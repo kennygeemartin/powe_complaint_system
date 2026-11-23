@@ -35,7 +35,7 @@ jobs:
           gradle-version: '8.9'
       - name: Check configured PowerResolve service
         env:
-          POWERRESOLVE_SERVICE_URL: ${{ vars.POWERRESOLVE_SERVICE_URL || 'https://powe-complaint-system.kennygeemartin.workers.dev' }}
+          POWERRESOLVE_SERVICE_URL: https://powe-complaint-system.powerresolve.workers.dev
         run: |
           case "$POWERRESOLVE_SERVICE_URL" in
             https://*) ;;
@@ -44,7 +44,7 @@ jobs:
           curl --fail --silent --show-error --retry 4 --retry-delay 3 --max-time 25 "$POWERRESOLVE_SERVICE_URL/api/health" | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{let x;try{x=JSON.parse(s)}catch{process.exit(1)}if(x.status!=="ok")process.exit(1);console.log("Verified live PowerResolve service:",x.service)})'
       - name: Build installable test APK
         env:
-          POWERRESOLVE_SERVICE_URL: ${{ vars.POWERRESOLVE_SERVICE_URL || 'https://powe-complaint-system.kennygeemartin.workers.dev' }}
+          POWERRESOLVE_SERVICE_URL: https://powe-complaint-system.powerresolve.workers.dev
         run: gradle -p android :app:assembleDebug --no-daemon --stacktrace
       - name: Verify build output and SHA-256
         run: |
@@ -65,14 +65,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          TAG="android-v1.0.3-connected"
+          TAG="android-v1.0.4-powerresolve"
           DIR="android/app/build/outputs/apk/debug"
-          ASSET="PowerResolve-Android-v1.0.3-connected.apk"
+          ASSET="PowerResolve-Android-v1.0.4-powerresolve.apk"
           cp "$DIR/PowerResolve-Android-debug.apk" "$DIR/$ASSET"
           sha256sum "$DIR/$ASSET" > "$DIR/$ASSET.sha256"
           if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-              --title "PowerResolve Android v1.0.3 (test APK)" \
+              --title "PowerResolve Android v1.0.4 (test APK)" \
               --notes "Android client connected to PowerResolve Cloudflare Worker. Debug-signed for test devices; not a Play Store release." \
               --prerelease
           fi
@@ -83,7 +83,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          URL="https://github.com/$GITHUB_REPOSITORY/releases/download/android-v1.0.3-connected/PowerResolve-Android-v1.0.3-connected.apk"
+          URL="https://github.com/$GITHUB_REPOSITORY/releases/download/android-v1.0.4-powerresolve/PowerResolve-Android-v1.0.4-powerresolve.apk"
           gh api --method POST "repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" \
             -f state=success -f context=PowerResolve-Android-APK \
             -f description="Installable Android test APK available" -f target_url="$URL"
