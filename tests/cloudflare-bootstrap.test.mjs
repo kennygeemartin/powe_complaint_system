@@ -52,7 +52,7 @@ if(key==='d1 list') {
     assert.ok(fs.existsSync(path.join(dir,'.created_db')));
     const second=run();
     assert.equal(second.status,0,second.stderr);
-    const history=fs.readFileSync(path.join(dir,'.commands'),'utf8').split('\\n');
+    const history=fs.readFileSync(path.join(dir,'.commands'),'utf8').split('\n');
     assert.equal(history.filter(x=>x.startsWith('d1 create ')).length,1);
     assert.equal(history.filter(x=>x.includes('r2 ')).length,0);
     assert.equal(history.filter(x=>x==='deploy').length,2);
