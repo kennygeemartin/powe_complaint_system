@@ -117,7 +117,7 @@ async function route(req,env){
       await env.DB.prepare('SELECT COUNT(*) AS total FROM staff_profiles').first();
     }
     catch(e){console.error('D1 schema check failed',e?.message||'Unknown D1 error');fail(503,'Database not initialized. Apply the D1 migrations.')}
-    return json({status:'ok',service:'PowerResolve Cloudflare demo',release:'auth-workers-pbkdf2-fix',timestamp:now()});
+    return json({status:'ok',service:'PowerResolve Cloudflare demo',release:'admin-specialist-dispatch-v2',timestamp:now()});
   }
   if(pathname==='/api/register'&&method==='POST'){
     const {alias,password}=authFields(await readJSON(req));return json({user_id:await addUser(env,alias,password)},200);
