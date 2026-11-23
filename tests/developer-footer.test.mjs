@@ -6,6 +6,7 @@ import {fileURLToPath} from 'node:url';
 const read = path => fs.readFileSync(fileURLToPath(new URL('../'+path, import.meta.url)), 'utf8');
 const html=read('public/index.html');
 const css=read('public/styles.css');
+const offline=read('public/offline.html');
 
 test('Professional developer footer is shared by all public and signed-in screens',()=>{
   assert.match(html,/function developerFooter\(\)/);
@@ -36,4 +37,11 @@ test('PWA installation and the text-only complaint form remain unchanged',()=>{
   assert.match(html,/function installPowerResolve\(\)/);
   assert.match(html,/function initNew\(\)/);
   assert.doesNotMatch(html,/type=["']file["']|evidenceFile|onShowFileChooser/);
+});
+
+test('Offline PWA screen preserves developer contacts even without network access',()=>{
+  assert.match(offline,/Eze Annastasia Chinaza/);
+  assert.match(offline,/PGD No\. 735/);
+  assert.match(offline,/tel:08132348235/);
+  assert.match(offline,/mailto:annastasiachinaza2@gmail\.com/);
 });
