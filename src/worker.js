@@ -338,8 +338,13 @@ async function route(req,env){
       JOIN users u ON u.id=c.owner_id LEFT JOIN users ag ON ag.id=c.assigned_to`;
     if(a.role==='consumer')sql+=' WHERE c.owner_id=?';
     else if(a.role==='agent')sql+=' WHERE c.assigned_to=?';
-    sql+=' ORDER BY c.id DESC LIMIT 1000';
-    const q=env.DB.prepare(sql),r=await (a.role==='admin'?q:q.bind(a.id)).all();return json(r.results);
+    const params=new URL(req.url).searchParams;
+    const limit=params.has('limit')?ensureInt(Number(params.get('limit')),1,1000,'Page size'):1000;
+    const offset=params.has('offset')?ensureInt(Number(params.get('offset')),0,1000000,'Page offset'):0;
+    sql+=' ORDER BY c.id DESC LIMIT ? OFFSET ?';
+    const bindings=a.role==='admin'?[limit,offset]:[a.id,limit,offset];
+    const r=await env.DB.prepare(sql).bind(...bindings).all();
+    return json(r.results);
   }
   if(pathname==='/api/stats'&&method==='GET'){
     let sql='SELECT status,priority FROM complaints',b=[];
