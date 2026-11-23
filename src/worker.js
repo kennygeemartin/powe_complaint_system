@@ -268,7 +268,12 @@ async function route(req,env){
   }
   if(pathname==='/api/agents'&&method==='GET'){
     rolecheck(a,['admin']);
-    const {results}=await env.DB.prepare("SELECT id,alias,area FROM users WHERE role='agent' ORDER BY alias").all();return json(results);
+    const {results}=await env.DB.prepare(`
+      SELECT u.id,u.alias,u.area,p.display_name,p.specialty,p.active,p.max_open_cases
+      FROM users u LEFT JOIN staff_profiles p ON p.user_id=u.id
+      WHERE u.role='agent' ORDER BY u.alias
+    `).all();
+    return json(results);
   }
   if(pathname==='/api/agents'&&method==='POST'){
     rolecheck(a,['admin']);
@@ -297,7 +302,12 @@ async function route(req,env){
         (reference,owner_id,request_id,category,details,address,lat,lon,hazard,affected,priority,status,created_at,updated_at,updated_by,last_note)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,'received',?,?,?,?)`)
         .bind(ref,a.id,x.request_id,x.category,details,address,lat,lon,hazard?1:0,affected,pr,ts,ts,a.id,'Complaint submitted').run();
-      return json({id:result.meta.last_row_id,reference:ref,priority:pr,status:'received',duplicate:false},201);
+      let dispatch={assigned:false,status:'received',staff_id:null};
+      try {dispatch=await assignCase(env,result.meta.last_row_id,x.category)}
+      catch(e){console.error('New complaint dispatch failed',e?.message)}
+      return json({id:result.meta.last_row_id,reference:ref,priority:pr,
+        status:dispatch.status,auto_assigned:dispatch.assigned,assigned_to:dispatch.staff_id,
+        duplicate:false},201);
     }catch(e){
       if(/UNIQUE|constraint/i.test(e.message)){
         const duplicate=await env.DB.prepare('SELECT id,reference FROM complaints WHERE owner_id=? AND request_id=?').bind(a.id,x.request_id).first();
@@ -336,7 +346,8 @@ async function route(req,env){
     if(sub==='action'&&method==='POST'){
       const x=await readJSON(req),rule=STATUS[x.action];
       if(!rule)fail(422,'Unknown action');
-      const [from,to]=rule;
+      let [from,to]=rule;
+      if(x.action==='assign' && c.status==='received')from='received';
       if(c.status!==from)fail(409,`Invalid transition from ${c.status} by ${x.action}`);
       const expectedRoles=({review:['admin'],assign:['admin'],close:['admin'],
         start:['agent'],resolve:['agent'],resume:['agent'],reopen:['consumer']})[x.action];
@@ -346,7 +357,15 @@ async function route(req,env){
       let agent=c.assigned_to;
       if(x.action==='assign'){
         agent=ensureInt(x.agent_id,1,2147483647,'Agent ID');
-        if(!await env.DB.prepare("SELECT id FROM users WHERE id=? AND role='agent'").bind(agent).first())fail(422,'Assigned user is not a technician');
+        const selected=await env.DB.prepare(`SELECT u.id,p.specialty,p.active,p.max_open_cases,
+          (SELECT COUNT(*) FROM complaints c WHERE c.assigned_to=u.id
+             AND c.status IN ('assigned','in_progress','reopened')) AS open_cases
+          FROM users u LEFT JOIN staff_profiles p ON p.user_id=u.id
+          WHERE u.id=? AND u.role='agent'`).bind(agent).first();
+        if(!selected)fail(422,'Assigned user is not a technician');
+        if(selected.active===0)fail(422,'Technician is currently inactive');
+        if(selected.specialty && selected.specialty!==c.category)fail(422,'Technician specialty does not match this complaint');
+        if(selected.max_open_cases && selected.open_cases>=selected.max_open_cases)fail(409,'Technician is at capacity');
       }
       const ts=now(),timeCol=({review:'reviewed_at',assign:'assigned_at',start:'started_at',resolve:'resolved_at',close:'closed_at'})[x.action];
       // Conditional UPDATE preserves legal transitions under concurrent requests. D1 trigger handles the event log.
