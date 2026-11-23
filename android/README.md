@@ -9,22 +9,17 @@ It wraps the same responsive UI in a secure Android WebView, with:
 - Back navigation, external-link handling and secure HTTPS-only content
 - No preinstalled usernames, passwords, tokens or real user records
 
-**This APK needs a live Cloudflare Worker URL to function.** The existing Cloudflare
-the D1 database is now configured in the repository; the app still requires a successfully deployed Worker backend.
-To remove the server-address prompt from APKs distributed to consumers, add a GitHub
-**repository variable** named `POWERRESOLVE_SERVICE_URL` with the exact, tested deployed
-HTTPS Worker origin (for example, `https://powe-complaint-system.YOUR-SUBDOMAIN.workers.dev`).
-Then run **Actions → Build Android APK → Run workflow** and install its newly built APK.
-The fixed-service APK opens the website directly, hides the Server control and provides
-a retry screen when offline. Without this variable the APK stays in manual setup mode.
-Never use the example hostname as a real service URL.
+**Default service URL for version 1.0.4:** [https://powe-complaint-system.powerresolve.workers.dev/](https://powe-complaint-system.powerresolve.workers.dev/)
+
+The Android application opens this HTTPS address directly after installation. No manual server URL is required for the published APK. The GitHub Actions workflow checks `/api/health` on this exact new hostname before compiling and publishing an APK. If the endpoint is unavailable, the build stops instead of publishing an APK with a broken connection.
+
+The Cloudflare account's previous `workers.dev` subdomain has been replaced. Android versions built against the previous hostname are obsolete and should be replaced with **v1.0.4-powerresolve**. A custom local build can override the Gradle default through `POWERRESOLVE_SERVICE_URL`, but the official GitHub Actions workflow deliberately targets the new hostname to avoid stale repository variables.
 
 ## Build on GitHub (recommended)
 
 The workflow `Build Android APK` runs whenever this folder changes on the `main` branch,
 and can also be started under **Actions -> Build Android APK -> Run workflow**.
-After it passes, open the run and download the `PowerResolve-Android-APK` artifact.
-Unzip it to obtain `PowerResolve-Android-debug.apk` and its SHA-256 checksum.
+After it passes, the workflow publishes `PowerResolve-Android-v1.0.4-powerresolve.apk` and its SHA-256 checksum in the GitHub release `android-v1.0.4-powerresolve`. The workflow also keeps the `PowerResolve-Android-APK` Actions artifact.
 
 Install the debug APK **only on a test device** after reviewing the source and recognizing
 that it is an unreleased demonstration. The debug build has an auto-generated
