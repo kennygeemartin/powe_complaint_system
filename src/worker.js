@@ -112,7 +112,10 @@ async function route(req,env){
   const {pathname}=new URL(req.url),method=req.method;
   if(pathname==='/api/health'&&method==='GET'){
     if(!env.DB)fail(503,'Database binding unavailable');
-    try {await env.DB.prepare('SELECT COUNT(*) AS total FROM users').first()}
+    try {
+      await env.DB.prepare('SELECT COUNT(*) AS total FROM users').first();
+      await env.DB.prepare('SELECT COUNT(*) AS total FROM staff_profiles').first();
+    }
     catch(e){console.error('D1 schema check failed',e?.message||'Unknown D1 error');fail(503,'Database not initialized. Apply the D1 migrations.')}
     return json({status:'ok',service:'PowerResolve Cloudflare demo',release:'auth-workers-pbkdf2-fix',timestamp:now()});
   }
@@ -169,7 +172,7 @@ async function route(req,env){
     const staff=await createSpecialist(env,{...x,password});
     let dispatch={assigned:0};
     if(staff.active){
-      try{dispatch=await assignPending(env,staff.specialty,35)}
+      try{dispatch=await assignPending(env,staff.specialty,12)}
       catch(e){console.error('Queued dispatch after staff creation failed',e?.message)}
     }
     return json({...staff,temporary_password:generated?password:undefined,
@@ -244,7 +247,7 @@ async function route(req,env){
         .bind(ts,a.id,'Requeued due to staff profile update',id).run();
     }
     let distributed={assigned:0};
-    try{distributed=await assignPending(env,null,70)}catch(e){console.error('Post-update dispatch failed',e?.message)}
+    try{distributed=await assignPending(env,null,20)}catch(e){console.error('Post-update dispatch failed',e?.message)}
     return json({id,alias:user.alias,display_name:displayName,specialty,active,
       max_open_cases:maxCases,backlog_assigned:distributed.assigned});
   }
@@ -264,7 +267,7 @@ async function route(req,env){
     const x=await readJSON(req);
     const specialty=x.specialty==null?null:clean(x.specialty);
     if(specialty!==null&&!SPECIALTIES.includes(specialty))fail(422,'Invalid specialty filter');
-    return json(await assignPending(env,specialty,100));
+    return json(await assignPending(env,specialty,20));
   }
   if(pathname==='/api/agents'&&method==='GET'){
     rolecheck(a,['admin']);
@@ -333,7 +336,7 @@ async function route(req,env){
     return json({total:results.length,by_status:counts,emergency:results.filter(r=>r.priority==='Emergency').length,
       high:results.filter(r=>r.priority==='High').length,resolved:results.filter(r=>['resolved','closed'].includes(r.status)).length});
   }
-  const caseMatch=pathname.match(/^\/api\/complaints\/(\d+)(?:\/(action|feedback))?$/);
+  const caseMatch=pathname.match(/^\/api\/complaints\/(\d+)(?:\/(action|feedback|reassign))?$/);
   if(caseMatch){
     const id=Number(caseMatch[1]),sub=caseMatch[2]||'',c=await getCase(env,id);access(a,c);
     if(!sub&&method==='GET'){
@@ -375,7 +378,38 @@ async function route(req,env){
       sql+=' WHERE id=? AND status=? RETURNING id,status';params.push(id,from);
       const changed=await env.DB.prepare(sql).bind(...params).first();
       if(!changed)fail(409,'Case status changed; refresh and retry');
+      if(x.action==='resolve') {
+        try{await assignPending(env,null,12)}
+        catch(e){console.error('Dispatch after resolution failed',e?.message)}
+      }
       return json({id,from_status:from,status:to,timestamp:ts});
+    }
+    if(sub==='reassign'&&method==='POST'){
+      rolecheck(a,['admin']);
+      if(!['assigned','in_progress','reopened'].includes(c.status))fail(409,'Only assigned cases can be transferred');
+      const x=await readJSON(req);
+      const nextId=ensureInt(x.agent_id,1,2147483647,'Technician');
+      if(nextId===c.assigned_to)fail(409,'This technician is already assigned');
+      const staff=await env.DB.prepare(`SELECT u.id,u.alias,p.specialty,p.active,p.max_open_cases,
+        (SELECT COUNT(*) FROM complaints cc WHERE cc.assigned_to=u.id
+          AND cc.status IN ('assigned','in_progress','reopened')) AS open_cases
+        FROM users u JOIN staff_profiles p ON p.user_id=u.id
+        WHERE u.id=? AND u.role='agent'`).bind(nextId).first();
+      if(!staff||!staff.active||staff.specialty!==c.category)
+        fail(422,'Choose an active technician with the matching specialty');
+      if(staff.open_cases>=staff.max_open_cases)fail(409,'Chosen technician is at maximum case capacity');
+      const ts=now(),note='Administrator reassigned case to '+staff.alias;
+      const changed=await env.DB.prepare(`UPDATE complaints
+        SET assigned_to=?,status='assigned',assigned_at=?,updated_at=?,updated_by=?,last_note=?
+        WHERE id=? AND assigned_to=? AND status=? RETURNING id`)
+        .bind(nextId,ts,ts,a.id,note,id,c.assigned_to,c.status).first();
+      if(!changed)fail(409,'Case has changed; refresh and retry');
+      if(c.status==='assigned'){
+        await env.DB.prepare(`INSERT INTO events
+          (complaint_id,actor_id,from_status,to_status,note,occurred_at)
+          VALUES (?,?,?,?,?,?)`).bind(id,a.id,'assigned','assigned',note,ts).run();
+      }
+      return json({id,status:'assigned',assigned_to:nextId,staff_alias:staff.alias});
     }
     if(sub==='feedback'&&method==='POST'){
       rolecheck(a,['consumer']);const x=await readJSON(req);
