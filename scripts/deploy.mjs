@@ -102,7 +102,7 @@ config.d1_databases[0].database_id = id;
 // never guess a hostname or change the account-wide workers.dev subdomain.
 const publicDomain = process.env.POWERRESOLVE_CUSTOM_DOMAIN?.trim().toLowerCase();
 if (publicDomain) {
-  if (!/^(?=.{4,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}$/.test(publicDomain)) {
+  if (!/^(?=.{4,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(publicDomain)) {
     fail('POWERRESOLVE_CUSTOM_DOMAIN must be a hostname (e.g. app.domain.example), without scheme, port or path.');
   }
   if (config.routes?.length && !config.routes.every(r => r.custom_domain === true && r.pattern === publicDomain)) {
