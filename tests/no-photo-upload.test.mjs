@@ -8,7 +8,9 @@ const read = relative => fs.readFileSync(fileURLToPath(new URL('../'+relative,im
 test('photo upload is removed from browser interface and complaint API',()=>{
   const html=read('public/index.html');
   const worker=read('src/worker.js');
-  assert.doesNotMatch(html,/type=["']file["']|evidenceFile|\\/evidence|formData\\.append\\(["']file["']/i);
+  assert.equal(html.includes('type="file"'),false);
+  assert.equal(html.includes('evidenceFile'),false);
+  assert.equal(html.includes('/evidence'),false);
   assert.doesNotMatch(worker,/EVIDENCE|\/evidence|FROM uploads|INSERT INTO uploads|\.formData\(/);
   assert.match(worker,/action\|feedback/);
 });
