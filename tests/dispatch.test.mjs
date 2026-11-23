@@ -187,3 +187,20 @@ test('deactivating an available technician requeues untouched cases, not in-prog
   const rechecked=await call(env,'/api/complaints/'+c.body.id,'GET',undefined,consumer);
   assert.equal(rechecked.body.assigned_to,second.body.id);
 });
+
+test('administrator resets a staff password and revokes all previous sessions',async()=>{
+  const {env,admin,consumer}=await setup();
+  const tech=await createStaff('Outage',env,admin,{alias:'OutageReset01'});
+  const initial=await call(env,'/api/login','POST',
+    {alias:'OutageReset01',password:tech.temporary_password});
+  assert.equal(initial.status,200);
+  assert.equal((await call(env,'/api/staff/'+tech.id+'/reset-password','POST',{},consumer)).status,403);
+  const changed=await call(env,'/api/staff/'+tech.id+'/reset-password','POST',{},admin);
+  assert.equal(changed.status,200,JSON.stringify(changed.body));
+  assert.notEqual(changed.body.temporary_password,tech.temporary_password);
+  assert.equal((await call(env,'/api/me','GET',undefined,initial.body.token)).status,401);
+  assert.equal((await call(env,'/api/login','POST',
+    {alias:'OutageReset01',password:tech.temporary_password})).status,401);
+  assert.equal((await call(env,'/api/login','POST',
+    {alias:'OutageReset01',password:changed.body.temporary_password})).status,200);
+});
