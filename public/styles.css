@@ -231,3 +231,44 @@ td .smallnote {margin-top: 4px}
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important}
 }
+
+/* Developer credit: understated, readable and consistent across all app states. */
+.site-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(210px, auto);
+  gap: 14px 24px;
+  align-items: center;
+  margin-top: 34px;
+  padding: 24px 0 6px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: .9rem;
+  line-height: 1.55;
+}
+.site-footer__identity {display: grid; gap: 2px; align-content: center; min-width: 0}
+.site-footer__eyebrow {font-size: .8rem; font-weight: 650; color: #5d6d81; letter-spacing: .012em}
+.site-footer__name {font-size: .98rem; font-weight: 750; color: var(--ink); letter-spacing: -.008em}
+.site-footer__reference {font-size: .85rem; color: #536783}
+.site-footer__contact {display: flex; flex-direction: column; align-items: flex-end; gap: 5px; min-width: 0}
+.site-footer__contact a {
+  color: #234f94;
+  text-decoration: none;
+  font-weight: 650;
+  font-size: .89rem;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+.site-footer__contact a:hover {text-decoration: underline}
+.site-footer__note {grid-column: 1 / -1; margin: 0; font-size: .82rem; color: #617184; border-top: 1px solid #edf1f6; padding-top: 11px}
+.authbox .site-footer {grid-template-columns: 1fr; margin-top: 25px; padding-top: 20px; gap: 10px}
+.authbox .site-footer__contact {align-items: flex-start}
+.authbox .site-footer__contact a {text-align: left}
+@media (max-width: 760px) {
+  .site-footer {grid-template-columns: minmax(0,1fr); gap: 12px; margin-top: 26px}
+  .site-footer__contact {align-items: flex-start}
+  .site-footer__contact a {text-align: left; font-size: .94rem; min-height: 28px}
+  .site-footer__note {font-size: .84rem}
+}
+@media (max-width: 420px) {
+  .site-footer__contact a {font-size: .87rem}
+}
