@@ -210,6 +210,20 @@ async function route(req,env){
     return json({created:results.filter(x=>!x.skipped).length,staff:results,
       note:'Starter accounts are inactive until a real staff member receives credentials and is activated.'});
   }
+  const staffReset=pathname.match(/^\/api\/staff\/(\d+)\/reset-password$/);
+  if(staffReset&&method==='POST'){
+    rolecheck(a,['admin']);
+    const uid=Number(staffReset[1]);
+    const user=await env.DB.prepare("SELECT id,alias FROM users WHERE id=? AND role='agent'")
+      .bind(uid).first();
+    if(!user)fail(404,'Staff account not found');
+    const password=randomHex(16),salt=randomHex(16),hash=await passwordHash(password,salt);
+    await env.DB.prepare('UPDATE users SET pass_hash=?,salt=? WHERE id=?')
+      .bind(hash,salt,uid).run();
+    await env.DB.prepare('DELETE FROM sessions WHERE user_id=?').bind(uid).run();
+    return json({staff_id:uid,alias:user.alias,temporary_password:password,
+      note:'Password shown once. Previous staff sessions have been revoked.'});
+  }
   const staffMatch=pathname.match(/^\/api\/staff\/(\d+)$/);
   if(staffMatch&&method==='PATCH'){
     rolecheck(a,['admin']);
