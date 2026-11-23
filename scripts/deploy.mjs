@@ -96,6 +96,21 @@ if (!uuidPattern.test(id)) {
 }
 if (!uuidPattern.test(id)) fail('Could not resolve the newly created D1 database ID.');
 config.d1_databases[0].database_id = id;
+
+// Configure a branded hostname automatically when an authenticated Cloudflare
+// account owns the active DNS zone. Leave the current workers.dev route live;
+// never guess a hostname or change the account-wide workers.dev subdomain.
+const publicDomain = process.env.POWERRESOLVE_CUSTOM_DOMAIN?.trim().toLowerCase();
+if (publicDomain) {
+  if (!/^(?=.{4,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}$/.test(publicDomain)) {
+    fail('POWERRESOLVE_CUSTOM_DOMAIN must be a hostname (e.g. app.domain.example), without scheme, port or path.');
+  }
+  if (config.routes?.length && !config.routes.every(r => r.custom_domain === true && r.pattern === publicDomain)) {
+    fail('Conflicting routes configuration; refusing to change production routes automatically.');
+  }
+  config.routes = [{ pattern: publicDomain, custom_domain: true }];
+  console.log('[PowerResolve deployment] Branded custom domain enabled: ' + publicDomain);
+}
 fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n');
 console.log('[PowerResolve deployment] D1 configuration validated.');
 if (isDryRun) process.exit(0);
