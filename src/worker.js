@@ -1,3 +1,4 @@
+import {SPECIALTIES,assignCase,assignPending} from './dispatch.js';
 /**
  * PowerResolve Cloudflare Workers + D1 implementation.
  * This is a research demonstration, not an integrated electricity utility dispatch service.
@@ -56,6 +57,30 @@ async function addUser(env,alias,password,role='consumer'){
     return r.meta.last_row_id;
   }catch(e){if(/UNIQUE|constraint/i.test(e.message))fail(409,'Alias already registered');throw e}
 }
+// Staff identities are provisioned exclusively through an authorized admin.
+async function createSpecialist(env, data) {
+  const {alias,password}=authFields(data);
+  const specialty=clean(data.specialty);
+  if(!SPECIALTIES.includes(specialty))fail(422,'Select a valid staff specialty');
+  const displayName=clean(data.display_name)||alias;
+  if(displayName.length<3||displayName.length>90)fail(422,'Staff name must contain 3–90 characters');
+  const maxCases=ensureInt(data.max_open_cases??12,1,100,'Maximum open cases');
+  const active=data.active===undefined?true:data.active===true;
+  if(data.active!==undefined&&typeof data.active!=='boolean')fail(422,'Active must be true or false');
+  const uid=await addUser(env,alias,password,'agent');
+  const ts=now();
+  try {
+    await env.DB.prepare(`INSERT INTO staff_profiles
+      (user_id,display_name,specialty,active,max_open_cases,created_at,updated_at)
+      VALUES (?,?,?,?,?,?,?)`)
+      .bind(uid,displayName,specialty,active?1:0,maxCases,ts,ts).run();
+  } catch(e) {
+    await env.DB.prepare('DELETE FROM users WHERE id=?').bind(uid).run();
+    throw e;
+  }
+  return {id:uid,alias,display_name:displayName,specialty,active,max_open_cases:maxCases,role:'agent'};
+}
+
 async function actor(req,env){
   const bearer=req.headers.get('authorization')||'';
   if(!bearer.startsWith('Bearer ')||bearer.length<16)fail(401,'Authentication required');
@@ -63,7 +88,12 @@ async function actor(req,env){
   const user=await env.DB.prepare(`SELECT u.id,u.alias,u.role,u.area FROM users u
     JOIN sessions s ON s.user_id=u.id WHERE s.token_hash=? AND s.expires_at>?`)
     .bind(tokenHash,now()).first();
-  if(!user)fail(401,'Invalid or expired session');return user;
+  if(!user)fail(401,'Invalid or expired session');
+  if(user.role==='agent') {
+    const p=await env.DB.prepare('SELECT active FROM staff_profiles WHERE user_id=?').bind(user.id).first();
+    if(p && !p.active)fail(403,'Staff account is inactive. Contact your administrator.');
+  }
+  return user;
 }
 function rolecheck(a,roles){if(!roles.includes(a.role))fail(403,'Role not permitted')}
 function access(a,c){
@@ -102,6 +132,10 @@ async function route(req,env){
     if(typeof x.password!=='string')fail(401,'Incorrect credentials');
     const u=await env.DB.prepare('SELECT * FROM users WHERE alias=?').bind(alias).first();
     if(!u||!await secretEqual(await passwordHash(x.password,u.salt),u.pass_hash))fail(401,'Incorrect credentials');
+    if(u.role==='agent') {
+      const p=await env.DB.prepare('SELECT active FROM staff_profiles WHERE user_id=?').bind(u.id).first();
+      if(p && !p.active)fail(403,'This staff account is inactive. Ask your administrator to activate it.');
+    }
     const token=randomHex(32);
     await env.DB.prepare('INSERT INTO sessions(token_hash,user_id,created,expires_at) VALUES (?,?,?,?)')
       .bind(await sha256(token),u.id,now(),isoLater(7)).run();
