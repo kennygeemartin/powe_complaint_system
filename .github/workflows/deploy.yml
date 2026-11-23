@@ -30,9 +30,8 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           POWERRESOLVE_D1_DATABASE_ID: ${{ vars.POWERRESOLVE_D1_DATABASE_ID }}
       - name: Verify public health endpoint
-        if: ${{ vars.POWERRESOLVE_SERVICE_URL != '' }}
         env:
-          SERVICE_URL: ${{ vars.POWERRESOLVE_SERVICE_URL }}
+          SERVICE_URL: https://powe-complaint-system.powerresolve.workers.dev
         run: |
           test -n "$SERVICE_URL"
           curl --fail --show-error --location --retry 4 --retry-delay 2 --max-time 20 "$SERVICE_URL/api/health"
