@@ -34,3 +34,39 @@ jobs:
             -f state="$STATE" -f context=PowerResolve-CI \
             -f description="$DESCRIPTION" \
             -f target_url="https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+
+      - name: Probe public administrator deployment
+        id: live_probe
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          ROOT="https://powe-complaint-system.powerresolve.workers.dev"
+          for check in 1 2 3 4 5 6 7 8; do
+            JSON="$(curl --fail --silent --max-time 9 "$ROOT/api/health" || true)"
+            if printf "%s" "$JSON" | grep -Fq '"release":"admin-specialist-dispatch-v2"'; then
+              curl --fail --silent --max-time 9 "$ROOT/admin" | grep -Fq '/admin.js'
+              curl --fail --silent --max-time 9 "$ROOT/admin.js" | grep -Fq 'adminDashboard'
+              echo "Public administrator portal and D1 migration verified."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Public administrator release not yet verified on Cloudflare."
+          exit 1
+      - name: Publish live deployment verification
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESULT: ${{ steps.live_probe.outcome }}
+        run: |
+          if [ "$RESULT" = "success" ]; then
+            STATE=success
+            DESCRIPTION="Cloudflare public admin release verified"
+          else
+            STATE=failure
+            DESCRIPTION="Cloudflare public admin release not yet verified"
+          fi
+          gh api --method POST "repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" \
+            -f state="$STATE" -f context=PowerResolve-Live \
+            -f description="$DESCRIPTION" \
+            -f target_url="https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
