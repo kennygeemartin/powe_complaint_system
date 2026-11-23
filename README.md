@@ -46,6 +46,16 @@ For a dedicated, production-suitable branded hostname, use a **domain already ow
 
 The new `workers.dev` route is now the target for all Android v1.0.4 builds. The Android workflow explicitly uses the new HTTPS origin even if a stale repository variable exists. The PWA itself uses relative links and works directly under this hostname. Existing PWA installations tied to the old origin may need to be installed again from the new address. See [Cloudflare custom domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/) and [workers.dev account subdomains](https://developers.cloudflare.com/workers/configuration/routing/workers-dev/).
 
+## Administrator console and automatic specialist assignment
+
+**Admin portal:** [https://powe-complaint-system.powerresolve.workers.dev/admin](https://powe-complaint-system.powerresolve.workers.dev/admin)
+
+The Administrator dashboard now provides all registered complaints, active technician workload, a priority-aware pending queue, manual case transfer, and a dedicated Staff directory. Technicians are categorized in six specialties: Outage, Meter fault, Billing, Safety hazard, Voltage fluctuation, and Transformer fault. New complaints are assigned to an **active** specialist with matching skills and available workload capacity, using least-loaded selection. When there is no qualified active technician, the complaint stays in the visible unassigned queue; it is never falsely marked as dispatched.
+
+Administrators can create staff accounts with one-time random passwords, change specialties, control assignment capacity, suspend accounts, reset passwords and regenerate inactive placeholder accounts for missing specialties. Inactive placeholders **do not** receive cases until verified people take ownership and are activated. Every case transfer or status change is audited. New D1 migration `0002_specialist_dispatch.sql` is automatically applied by `npm run deploy`; database and existing complaint records are preserved.
+
+**Security:** No universal administrator password or fake active field personnel are created. First administrator setup still uses the existing private `BOOTSTRAP_KEY` procedure. The platform records internal assignments only; it is not connected to the electricity distributor's physical dispatch operation. Full administration and implementation guide: [docs/ADMIN_DISPATCH_GUIDE.md](docs/ADMIN_DISPATCH_GUIDE.md).
+
 ## Implemented functionality
 
 Consumer account registration/login, 7-day server sessions and logout; role-scoped complaint lists; GPS coordinate and category validation; deduplicated complaint submissions; server-calculated Emergency/High/Routine priority; admin review, staff assignment, agent progress/resolution notes, admin closure, consumer reopening and feedback; immutable state-event history via database triggers; admin statistics. Complaints are text and location based; photo uploads are not supported. No default admin or technician credentials are committed.
