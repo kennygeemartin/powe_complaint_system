@@ -17,7 +17,9 @@
     "deploy:prepare": "node scripts/deploy.mjs --prepare-only",
     "build:pwa": "node scripts/build-pwa-icons.mjs",
     "predeploy": "npm run build:pwa",
-    "pretest": "npm run build:pwa"
+    "pretest": "npm run build:pwa",
+    "admin:key": "node scripts/bootstrap-admin.mjs --generate-key",
+    "admin:bootstrap": "node scripts/bootstrap-admin.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.68.0"
