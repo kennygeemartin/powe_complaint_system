@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="referrer" content="no-referrer">
+  <meta name="theme-color" content="#183654">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; connect-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'self'">
+  <title>First Administrator Setup · PowerResolve</title>
+  <style>
+    :root{font-family:"Segoe UI",Roboto,system-ui,sans-serif;color:#1c304b;background:#f4f7fb;line-height:1.6}
+    *{box-sizing:border-box}
+    body{margin:0;padding:32px 16px}
+    main{max-width:610px;margin:0 auto;background:#fff;border:1px solid #dce5ef;border-radius:20px;padding:34px;box-shadow:0 10px 40px #1836540d}
+    .brand{display:flex;align-items:center;gap:13px;font-size:24px;font-weight:800;letter-spacing:-.03em;color:#183654}
+    .mark{display:grid;place-items:center;width:45px;height:45px;background:#245ac2;color:#fff;border-radius:12px}
+    h1{font-size:clamp(25px,5vw,33px);line-height:1.2;letter-spacing:-.025em;margin:32px 0 10px}
+    h2{font-size:19px;margin:26px 0 9px}
+    p{margin:10px 0;color:#56677d}
+    .note{background:#eff4fc;border-left:3px solid #285db5;border-radius:9px;padding:13px 15px;font-size:14px}
+    label{display:block;color:#293e59;font-size:15px;font-weight:750;margin:18px 0 7px}
+    input{width:100%;min-height:52px;padding:12px 15px;border:1.5px solid #bdcde0;border-radius:10px;font:16px system-ui;background:#fff;color:#192a40}
+    input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid #79a4e9;outline-offset:2px}
+    button{min-height:49px;padding:11px 17px;background:#245ac2;border:0;border-radius:10px;color:#fff;font:700 15px system-ui;cursor:pointer}
+    button:hover{background:#194695}
+    button:disabled{opacity:.6;cursor:not-allowed}
+    .outline{color:#245391;border:1px solid #bfd0e9;background:#eef4fb}
+    .outline:hover{background:#e3effc}
+    .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:13px 0}
+    .state{border-radius:10px;padding:13px 15px;margin:15px 0;font-size:15px;overflow-wrap:anywhere}
+    .good{background:#e9f8ef;border:1px solid #b9e6cc;color:#0a6843}
+    .bad{background:#fff0f2;border:1px solid #f2c0c8;color:#a21e36}
+    .hidden{display:none}
+    .sub{font-size:14px}
+    .divider{border:0;border-top:1px solid #e4ebf2;margin:24px 0}
+    footer{margin-top:26px;padding-top:15px;border-top:1px solid #e4ebf2;color:#657790;font-size:13px}
+    a{color:#245391}
+    @media(max-width:440px){body{padding:13px}main{padding:26px 19px}.row button{width:100%}}
+  </style>
+</head>
+<body>
+<main>
+  <div class="brand"><span class="mark" aria-hidden="true">⚡</span> PowerResolve</div>
+  <h1>Set up the first administrator</h1>
+  <p>This one-time page creates the <strong>SuperAdmin</strong> account only after Cloudflare validates your private <strong>BOOTSTRAP_KEY</strong>.</p>
+  <div class="note">Use this page only on a device you control. The key and password are not saved in browser storage or included in the URL. If an administrator already exists, PowerResolve will refuse to create another one.</div>
+  <h2>1. Create a secure bootstrap key</h2>
+  <p class="sub">Generate a random key below, then add it as a <strong>Secret</strong> in Cloudflare: Workers &amp; Pages → <strong>powe-complaint-system</strong> → Settings → Variables and Secrets → Add → Secret → Name <code>BOOTSTRAP_KEY</code>. Save and deploy the setting.</p>
+  <div class="row"><button type="button" class="outline" id="generate">Generate private key</button><button type="button" class="outline" id="copy" disabled>Copy key</button></div>
+  <label for="generated">New key (visible only on this page)</label>
+  <input id="generated" type="text" readonly spellcheck="false" autocomplete="off" placeholder="Choose Generate private key above">
+  <h2>2. Create the SuperAdmin account</h2>
+  <form id="bootstrapForm" autocomplete="off">
+    <label for="alias">Administrator username</label>
+    <input id="alias" value="SuperAdmin" readonly>
+    <label for="bootstrap">Cloudflare BOOTSTRAP_KEY</label>
+    <input id="bootstrap" type="password" required minlength="32" autocomplete="off" spellcheck="false" placeholder="Paste the Cloudflare secret here">
+    <label for="password">New administrator password</label>
+    <input id="password" type="password" required minlength="8" maxlength="128" autocomplete="new-password" placeholder="Enter your chosen administrator password">
+    <p class="sub">Avoid reusing a password that has appeared in messages or public source code.</p>
+    <button id="submit" type="submit">Create administrator securely</button>
+  </form>
+  <div id="result" role="status" aria-live="polite"></div>
+  <hr class="divider">
+  <div class="row"><a href="/admin">Return to administrator login</a></div>
+  <footer>PowerResolve · One-time protected administrator provisioning. The application remains a research demonstration, not an electricity utility dispatch service.</footer>
+</main>
+<script>
+(function(){
+  'use strict';
+  const $=id=>document.getElementById(id);
+  const show=(message,ok)=>{
+    const node=$('result');
+    node.textContent=message;
+    node.className='state '+(ok?'good':'bad');
+  };
+  $('generate').onclick=()=>{
+    const random=crypto.getRandomValues(new Uint8Array(40));
+    const key=Array.from(random,b=>b.toString(16).padStart(2,'0')).join('');
+    $('generated').value=key;
+    $('bootstrap').value=key;
+    $('copy').disabled=false;
+    show('Key generated. Add this key to Cloudflare as a Worker Secret named BOOTSTRAP_KEY, save the setting, then complete the form.',true);
+  };
+  $('copy').onclick=async()=>{
+    try{
+      await navigator.clipboard.writeText($('generated').value);
+      show('Key copied. Paste it into the Cloudflare Worker Secret named BOOTSTRAP_KEY.',true);
+    }catch{
+      $('generated').select();
+      show('Clipboard access is unavailable. Select and copy the key manually.',false);
+    }
+  };
+  $('bootstrapForm').onsubmit=async event=>{
+    event.preventDefault();
+    const submit=$('submit');
+    const key=$('bootstrap').value.trim();
+    const password=$('password').value;
+    if(key.length<32){show('The Cloudflare bootstrap secret should be at least 32 characters.',false);return}
+    submit.disabled=true;
+    try{
+      const response=await fetch('/api/setup/admin',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-Bootstrap-Key':key},
+        body:JSON.stringify({alias:'SuperAdmin',password}),
+        credentials:'omit',
+        cache:'no-store',
+        redirect:'error',
+        referrerPolicy:'no-referrer'
+      });
+      const result=await response.json().catch(()=>({}));
+      if(response.ok){
+        $('bootstrap').value='';
+        $('password').value='';
+        $('generated').value='';
+        $('copy').disabled=true;
+        show('Success: administrator created. Open the administrator sign-in page and log in with SuperAdmin and your chosen password.',true);
+      }else if(response.status===409){
+        show('An administrator already exists in the database. The one-time setup cannot create or replace it; existing administrator recovery is required.',false);
+      }else if(response.status===404){
+        show('The BOOTSTRAP_KEY secret is not configured on this deployed Cloudflare Worker, or this setup endpoint is disabled.',false);
+      }else if(response.status===403){
+        show('The bootstrap key did not match the Cloudflare Worker secret. Check the secret value and deployment.',false);
+      }else{
+        show('Setup failed (HTTP '+response.status+'): '+String(result.detail||'Check the Cloudflare Worker logs.'),false);
+      }
+    }catch{
+      show('Could not reach the setup API. Check your internet connection and Cloudflare deployment.',false);
+    }finally{submit.disabled=false}
+  };
+})();
+</script>
+</body>
+</html>
