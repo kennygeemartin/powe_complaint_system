@@ -43,15 +43,19 @@ jobs:
           ROOT="https://powe-complaint-system.powerresolve.workers.dev"
           for check in 1 2 3 4 5 6 7 8; do
             JSON="$(curl --fail --silent --max-time 9 "$ROOT/api/health" || true)"
-            if printf "%s" "$JSON" | grep -Fq '"release":"admin-specialist-dispatch-v2"'; then
-              curl --fail --silent --max-time 9 "$ROOT/admin" | grep -Fq '/admin.js'
-              curl --fail --silent --max-time 9 "$ROOT/admin.js" | grep -Fq 'adminDashboard'
-              echo "Public administrator portal and D1 migration verified."
-              exit 0
+            if [[ "$JSON" == *'"release":"admin-specialist-dispatch-v2"'* ]]; then
+              PAGE="$(curl --fail --silent --max-time 9 "$ROOT/admin" || true)"
+              SCRIPT="$(curl --fail --silent --max-time 9 "$ROOT/admin.js" || true)"
+              SETUP="$(curl --fail --silent --max-time 9 "$ROOT/first-admin-setup.html" || true)"
+              if [[ "$PAGE" == *'/admin.js'* && "$SCRIPT" == *'adminDashboard'* &&
+                    "$SETUP" == *'Set up the first administrator'* ]]; then
+                echo "Public administrator portal, protected setup page and D1 migration verified."
+                exit 0
+              fi
             fi
             sleep 10
           done
-          echo "Public administrator release not yet verified on Cloudflare."
+          echo "Public administrator release or first-admin setup page not yet verified on Cloudflare."
           exit 1
       - name: Publish live deployment verification
         if: always()
