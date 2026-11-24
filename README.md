@@ -46,6 +46,21 @@ For a dedicated, production-suitable branded hostname, use a **domain already ow
 
 The new `workers.dev` route is now the target for all Android v1.0.4 builds. The Android workflow explicitly uses the new HTTPS origin even if a stale repository variable exists. The PWA itself uses relative links and works directly under this hostname. Existing PWA installations tied to the old origin may need to be installed again from the new address. See [Cloudflare custom domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/) and [workers.dev account subdomains](https://developers.cloudflare.com/workers/configuration/routing/workers-dev/).
 
+## One-time first-administrator provisioning (protected)
+
+**Mobile-friendly setup page:** [https://powe-complaint-system.powerresolve.workers.dev/first-admin-setup.html](https://powe-complaint-system.powerresolve.workers.dev/first-admin-setup.html)
+
+The Worker permits creating the initial administrator **only if** the production Cloudflare secret `BOOTSTRAP_KEY` matches the request and no administrator already exists. This page does **not** contain passwords, Cloudflare tokens or account-level bypasses. It generates a cryptographically random key inside the browser and submits the key and chosen administrator password to the existing same-origin `POST /api/setup/admin` endpoint. It does not store either value in browser storage. After provisioning, sign in at [`/admin`](https://powe-complaint-system.powerresolve.workers.dev/admin).
+
+1. Open the setup page on a trusted device and choose **Generate private key**. Copy the random key.
+2. In the [Cloudflare Dashboard](https://dash.cloudflare.com/), open **Workers & Pages → powe-complaint-system → Settings → Variables and Secrets → Add**. Create a **Secret** (not a plaintext variable) with name `BOOTSTRAP_KEY` and paste the generated key. Save and deploy/apply that secret.
+3. Return to the setup page. With username `SuperAdmin`, supply the **same** private key and a private administrator password, then choose **Create administrator securely**.
+4. Sign in at `/admin`. Once first-admin creation and login have succeeded, delete the one-time `BOOTSTRAP_KEY` secret from Cloudflare to disable further use of the setup route.
+
+**Alternative terminal procedure:** On a trusted computer with Node.js and this repository checked out, run `npm run admin:key` to generate a key to paste into the Cloudflare secret, then `npm run admin:bootstrap`. The latter asks for the key and administrator password **without printing them**, creates `SuperAdmin` and verifies login. It reports a protected conflict if an administrator has already been provisioned. Never paste administrator passwords or secret keys into GitHub issues, commit messages, build variables, or chat. A password previously used in public tests is unsuitable for a production administrator.
+
+**Not a recovery bypass:** When another administrator already exists, the protected endpoint returns HTTP 409 and does not replace it. Existing administrator recovery requires authenticated Cloudflare account access.
+
 ## Administrator console and automatic specialist assignment
 
 **Admin portal:** [https://powe-complaint-system.powerresolve.workers.dev/admin](https://powe-complaint-system.powerresolve.workers.dev/admin)
